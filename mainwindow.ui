@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1365</width>
+    <height>901</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_4">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,4">
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,1">
+        <item>
+         <layout class="QVBoxLayout" name="treeview_lay"/>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="ver"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="show">
+        <item>
+         <widget class="QTabWidget" name="show_part">
+          <property name="currentIndex">
+           <number>0</number>
+          </property>
+          <widget class="QWidget" name="tab">
+           <property name="mouseTracking">
+            <bool>false</bool>
+           </property>
+           <property name="tabletTracking">
+            <bool>false</bool>
+           </property>
+           <attribute name="title">
+            <string>显示区域</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayout_3">
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <item>
+               <widget class="QTextEdit" name="textEdit">
+                <property name="lineWrapMode">
+                 <enum>QTextEdit::WidgetWidth</enum>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1365</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="wenjian">
+    <property name="title">
+     <string>文件</string>
+    </property>
+    <addaction name="new_project"/>
+    <addaction name="open_project"/>
+    <addaction name="import_3"/>
+    <addaction name="close_project_3"/>
+   </widget>
+   <widget class="QMenu" name="menu">
+    <property name="title">
+     <string>预处理</string>
+    </property>
+    <addaction name="tipper"/>
+    <addaction name="quzao"/>
+   </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>反演</string>
+    </property>
+   </widget>
+   <addaction name="wenjian"/>
+   <addaction name="menu"/>
+   <addaction name="menu_2"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="new_project">
+   <property name="text">
+    <string>新建工区</string>
+   </property>
+  </action>
+  <action name="open_project">
+   <property name="text">
+    <string>打开工区</string>
+   </property>
+  </action>
+  <action name="import_project">
+   <property name="text">
+    <string>导入</string>
+   </property>
+  </action>
+  <action name="quzao">
+   <property name="text">
+    <string>去噪</string>
+   </property>
+  </action>
+  <action name="import_3">
+   <property name="text">
+    <string>导入文件</string>
+   </property>
+  </action>
+  <action name="tipper">
+   <property name="text">
+    <string>倾子</string>
+   </property>
+  </action>
+  <action name="close_project_3">
+   <property name="text">
+    <string>关闭工区</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
