@@ -1,6 +1,7 @@
 #include "ProcessLine.h"
 #include <QProcessEnvironment>
 #include <QDebug>
+#include <QCoreApplication>
 #include "MainWindow.h"
 ProcessLine::ProcessLine(QObject *parent) : QThread(parent), process(new QProcess(this)),mainwindow(static_cast<MainWindow*>(parent))
 {
@@ -23,7 +24,10 @@ void ProcessLine::run()
         qDebug() << "Caught exception:" << e.what(); // 输出错误信息
     }
 
-    QString program = "D:/QT-test-data/processLine.exe";
+    QString program = "D:/QT6_code/test/bins/processLine.exe";
+    // QString program = QCoreApplication::applicationDirPath() + "/../processLine.exe";
+    qDebug() << "Program path: " << program;
+
     QStringList arguments;
     arguments << mainwindow->processlinereadfile;
     QDir dir(mainwindow->processlineworking);

@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>images/close_icon.png</file>
+        <file>images/TS3.png</file>
+        <file>images/cutline.png</file>
     </qresource>
 </RCC>

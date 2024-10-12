@@ -34,6 +34,10 @@
 #include <Qwt/qwt_symbol.h>
 #include "FileDialog.h"
 #include <Qwt/qwt_plot_grid.h>
+#include <qwt_legend.h>
+#include <qwt_plot_magnifier.h>
+#include <qwt_plot_panner.h>
+
 #include "ProcessLine.h"
 #include "TipperDialog.h"
 #include "FileChangeManager.h"
@@ -41,6 +45,11 @@
 #include "progressdialog.h"
 #include "CustomScaleDraw.h"
 #include "TimeSeries.h"
+#include "TimeRangeDialog.h"
+#include <iostream>
+#include <fstream>
+
+
 std::string getExecutablePath() {
     try {
         // 获取当前程序路径
@@ -68,7 +77,9 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("预处理");
     this->setFixedSize(1200, 800);
     move(100,0);
-
+    std::string meipassPath = "";
+    std::string tmpDir = getTmpDir(meipassPath);
+    std::cout << "Temporary Directory: " << tmpDir << std::endl;
 
 
     ui->show_part->setTabBar(new CustomTabBar(ui->show_part));
@@ -79,13 +90,12 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->import_3, &QAction::triggered, this, &MainWindow::onImportTriggered);
     connect(ui->tipper, &QAction::triggered, this, &MainWindow::openTipperDialog);
     connect(ui->close_project_3,&QAction::triggered,this, &MainWindow::closeFile);
-    std::string meipassPath = "";
 
-    std::string tmpDir = getTmpDir(meipassPath);
-    std::cout << "Temporary Directory: " << tmpDir << std::endl;
+
+
 
     // QSize size = ui->show_part->size();  // 获取当前大小
-    ui->show_part->setFixedSize(980,750);   // 锁定大小
+    ui->show_part->setFixedSize(1000,750);   // 锁定大小
 }
 
 MainWindow::~MainWindow()
@@ -180,8 +190,9 @@ void MainWindow::openFile(){
     if (fileName.isEmpty()) {
         return;
     }
-    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN"};
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines"};
     QDir dir_open(QFileInfo(fileName).absolutePath());
+
 
     bool missingFolders = false;
     QStringList missingFolderNames;
@@ -293,14 +304,473 @@ void MainWindow::saveFile() {
 }
 
 
+void MainWindow::processDirectory(const QString& dirPath) {
+    QDir dir(dirPath);
+    QStringList filter;
+    filter << "*.tipper";
+
+
+    // 获取所有 tipper 文件
+    QStringList tipperFiles = dir.entryList(filter, QDir::Files);
+    if (tipperFiles.size() == 0) return;
+    for (const QString& fileName : tipperFiles) {
+        QString filePath = dir.absoluteFilePath(fileName);
+        readTipperFile(filePath);
+    }
+
+    // 读取 coord_distance.txt 文件
+    QString coordFilePath = dir.absoluteFilePath("coord_distance.txt");
+    if (QFile::exists(coordFilePath)) {
+        readCoordDistanceFile(coordFilePath);
+    }
+}
+
+QDateTime MainWindow::parseFileNameToDateTime(const QString& fileName) {
+    // 使用正则表达式解析文件名中的日期时间信息
+    QRegularExpression re("(\\d{4})-(\\d{2})-(\\d{2})-(\\d{2})-(\\d{2})-(\\d{2})");
+    QRegularExpressionMatch match = re.match(fileName);
+    if (match.hasMatch()) {
+        int year = match.captured(1).toInt();
+        int month = match.captured(2).toInt();
+        int day = match.captured(3).toInt();
+        int hour = match.captured(4).toInt();
+        int minute = match.captured(5).toInt();
+        int second = match.captured(6).toInt();
+
+        return QDateTime(QDate(year, month, day), QTime(hour, minute, second));
+    }
+    return QDateTime();
+}
+
+void MainWindow::readTipperFile(const QString& filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Cannot open file:" << filePath;
+        return;
+    }
+
+    TipperData data;
+    QTextStream in(&file);
+    QString firstLine = in.readLine();  // 读取第一行作为频率
+    QStringList freqList = firstLine.split(" ");
+    for (const QString& freq : freqList) {
+        data.frequencies.append(freq.toDouble());
+    }
+
+    QString secondLine = in.readLine();  // 读取第二行作为tipperReal
+    QStringList realList = secondLine.split(" ");
+    for (const QString& real : realList) {
+        data.tipperReal.append(real.toDouble());
+    }
+
+    QString thirdLine = in.readLine();  // 读取第三行作为tipperImag
+    QStringList imagList = thirdLine.split(" ");
+    for (const QString& imag : imagList) {
+        data.tipperImag.append(imag.toDouble());
+    }
+
+    tipperDataList.append(data);
+}
+
+void MainWindow::readCoordDistanceFile(const QString& filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Cannot open coord_distance file:" << filePath;
+        return;
+    }
+
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
+        if (parts.size() >= 4) {
+            coordData.time.append(parts[0].toDouble());
+            coordData.distance.append(parts[3].toDouble());
+        }
+    }
+}
+
+QVector<TipperData> MainWindow::getTipperData() const {
+    return tipperDataList;
+}
+
+CoordData MainWindow::getCoordData() const {
+    return coordData;
+}
+
+
 void MainWindow::doubleClick(const QString &filePath) {
     QFileInfo fileInfo(filePath);
 
-    if (fileInfo.isDir()) {
-        return;
+    if (fileInfo.isDir() && fileInfo.fileName().startsWith("line")) {
+        QString filedir = fileInfo.absoluteFilePath();
+        QString tabName = fileInfo.fileName();
+        qDebug() << "filedir:" << filedir;
+        tipperDataList.clear();
+        coordData.distance.clear();
+        coordData.time.clear();
+        this->processDirectory(filedir);
+        QVector<TipperData> tipperDataList = this->getTipperData();
+        if (tipperDataList.isEmpty()) return;
+        QList<QList<double>> frequencies;
+        QList<QList<double>> tipperReal;
+        QList<QList<double>> tipperImag;
+        for (const TipperData& data : tipperDataList) {
+            frequencies.append( data.frequencies.toList());
+            tipperReal.append( data.tipperReal.toList());
+            tipperImag.append(data.tipperImag.toList());
+        }
+
+        CoordData coordData = this->getCoordData();
+        QList<double> coordDatas;
+        coordDatas = coordData.distance;
+        qDebug() << "Coord Distance:" << coordData.distance;
+
+        //图像模拟
+        QWidget *plotWidget = new QWidget();
+        QVBoxLayout *layout = new QVBoxLayout(plotWidget);
+
+        // 创建两个 QwtPlot 实例，一个用于显示实部，一个用于显示虚部 注释部分采用传统绘制
+        // QwtPlot *realPlot = new QwtPlot();
+        Plot *realPlot = new Plot();
+        realPlot->setTitle("Tipper Real Part");
+        realPlot->setAxisTitle(QwtPlot::xBottom, "Distance / m");
+        realPlot->setAxisTitle(QwtPlot::yLeft, "Tipper real");
+        realPlot->insertLegend(new QwtLegend());
+
+        // QwtPlot *imagPlot = new QwtPlot();
+        Plot *imagPlot = new Plot();
+        imagPlot->setTitle("Tipper Imaginary Part");
+        imagPlot->setAxisTitle(QwtPlot::xBottom, "Distance / m");
+        imagPlot->setAxisTitle(QwtPlot::yLeft, "Tipper image");
+        imagPlot->insertLegend(new QwtLegend());
+
+
+        QwtPlotGrid* grid = new QwtPlotGrid();
+        grid->attach(realPlot);
+        QwtPlotGrid* gridimg = new QwtPlotGrid();
+        gridimg->attach(imagPlot);
+
+
+        // // 初始化放大和拖拽功能
+        // QwtPlotMagnifier* magnifier = new QwtPlotMagnifier(realPlot->canvas());
+        // magnifier->setMouseButton(Qt::NoButton);  // 通过滚轮放大，而不是鼠标按键
+        // magnifier->setWheelFactor(1.1);  // 设置滚轮放大的速度
+        // QwtPlotPanner* panner = new QwtPlotPanner(realPlot->canvas());
+        // panner->setMouseButton(Qt::LeftButton);  // 使用左键拖拽
+
+        // // 对虚部图进行同样设置
+        // QwtPlotMagnifier* imagMagnifier = new QwtPlotMagnifier(imagPlot->canvas());
+        // imagMagnifier->setMouseButton(Qt::NoButton);
+        // imagMagnifier->setWheelFactor(1.1);
+        // QwtPlotPanner* imagPanner = new QwtPlotPanner(imagPlot->canvas());
+        // imagPanner->setMouseButton(Qt::LeftButton);
+
+        // 遍历所有频率数据，分别绘制实部和虚部
+        for (int i = 0; i < frequencies[0].size(); ++i) {
+            const QList<double>& currentFreqReal = tipperReal[i];
+            QwtPlotCurve* curve = new QwtPlotCurve(QString("Frequency %1 Hz").arg(frequencies[0][i])); // 假设每个频率下的第一个频率值为标签
+            curve->setPen(QPen(QColor::fromHsv(i * 20, 255, 200), 2));
+            QVector<double> xData = coordDatas.toVector();
+            QVector<double> yData = currentFreqReal.toVector();
+            curve->setSamples(xData, yData);
+            curve->attach(realPlot);
+
+
+            const QList<double>& currentFreqimag = tipperImag[i];
+            QwtPlotCurve* iamgcurve = new QwtPlotCurve(QString("Frequency %1 Hz").arg(frequencies[0][i])); // 假设每个频率下的第一个频率值为标签
+            iamgcurve->setPen(QPen(QColor::fromHsv(i * 20, 255, 200), 2)); // 设置曲线颜色和宽度
+            QVector<double> yDataimag = currentFreqimag.toVector();
+            iamgcurve->setSamples(xData, yDataimag);
+            iamgcurve->attach(imagPlot);
+
+            // realPlot->setSamplesTipper(curve);
+            // imagPlot->setSamplesTipper(iamgcurve);
+        }
+
+
+        // // 遍历所有频率数据，分别绘制实部和虚部
+        // for (int i = 0; i < frequencies[0].size(); ++i) {
+        //     // 绘制实部曲线
+        //     const QList<double>& currentFreqReal = tipperReal[i];
+        //     QwtPlotCurve* curve = new QwtPlotCurve(QString("Frequency %1 Hz").arg(frequencies[0][i])); // 假设每个频率下的第一个频率值为标签
+        //     curve->setPen(QPen(QColor::fromHsv(i * 20, 255, 200), 1));
+
+        //     // 转换 xData 和 yData 为 QList<QPointF>
+        //     QList<QPointF> points;
+        //     QVector<double> xData = coordDatas.toVector();
+        //     QVector<double> yData = currentFreqReal.toVector();
+
+        //     for (int j = 0; j < xData.size(); ++j) {
+        //         points << QPointF(xData[j], yData[j]);
+        //     }
+
+        //     curve->setSamples(points);
+        //     realPlot->setSamples(curve,points);
+        //     curve->attach(realPlot);
+
+        //     // 绘制虚部曲线
+        //     const QList<double>& currentFreqImag = tipperImag[i];
+        //     QwtPlotCurve* imagCurve = new QwtPlotCurve(QString("Frequency %1 Hz").arg(frequencies[0][i])); // 假设每个频率下的第一个频率值为标签
+        //     imagCurve->setPen(QPen(QColor::fromHsv(i * 20, 255, 150), 1)); // 设置曲线颜色和宽度
+
+        //     // 转换 xData 和 yDataimag 为 QList<QPointF>
+        //     QList<QPointF> pointsImag;
+        //     QVector<double> yDataImag = currentFreqImag.toVector();
+
+        //     for (int j = 0; j < xData.size(); ++j) {
+        //         pointsImag << QPointF(xData[j], yDataImag[j]);
+        //     }
+
+        //     imagCurve->setSamples(pointsImag);
+        //     imagPlot->setSamples(imagCurve,pointsImag);
+        //     imagCurve->attach(imagPlot);
+        // }
+
+        // 将两个图形添加到布局中
+        layout->addWidget(realPlot); // 添加实部图
+        layout->addWidget(imagPlot); // 添加虚部图
+
+
+
+        if (ui->show_part->count() == 0) {
+            ui->show_part->insertTab(0,plotWidget,tabName);
+            ui->show_part->removeTab(0);
+            ui->show_part->insertTab(0,plotWidget,tabName);
+        }else{
+            ui->show_part->insertTab(0,plotWidget,tabName);
+            ui->show_part->removeTab(-1);
+            ui->show_part->insertTab(0,plotWidget,tabName);
+        }
+
+
 
     } else if (fileInfo.isFile()) {
-        if (fileInfo.fileName().endsWith("json") or fileInfo.fileName().endsWith("pmt.txt")){
+        if (fileInfo.fileName().endsWith("LIN.txt")){
+            QString tabName = fileInfo.fileName();
+            QFile file(filePath);
+
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                qDebug() << "Could not open file!";
+                return;
+            }
+
+            QTextStream in(&file);
+            QStringList lines;
+
+            // // Read the entire file and store each line
+            while (!in.atEnd()) {
+                QString line = in.readLine();
+                lines.append(line);
+            }
+
+            if (lines.isEmpty()) {
+                qDebug() << "File is empty!";
+                return;
+            }
+
+            // // Step 1: Process the first row to find `0x1010`
+            QString firstRow = lines[0];
+            QStringList firstRowParts = firstRow.split(QRegularExpression("[\\t\\s]+"), Qt::SkipEmptyParts);
+
+            int timestartpp = -1;
+            for (int i = 0; i < firstRowParts.size(); ++i) {
+                qDebug() << "firstRowParts[i] :" << firstRowParts[i];
+                if (firstRowParts[i] == "0x1010") {
+                    timestartpp = i;
+                    break;
+                }
+            }
+
+            if (timestartpp == -1) {
+                qDebug() << "0x1010 not found in the first row.";
+                return;
+            }
+            yearandday=firstRowParts[timestartpp+1];
+            // //  Extract `timelin` after `0x1010`
+            QStringList timelin;
+            for (int i = 1; i < lines.size(); ++i) {
+                QStringList rowParts = lines[i].split(QRegularExpression("[\\t\\s]+"), Qt::SkipEmptyParts);
+                if (rowParts.size() > timestartpp + 2) {
+                    timelin.append(rowParts[timestartpp + 2]);
+                }
+            }
+
+            timelin.removeDuplicates();
+            qDebug() << "timelin:" << timelin.size();
+
+
+            QString projected_coordinates = fileInfo.absolutePath();
+            QString fileNameWithoutExtension = fileInfo.baseName();
+
+            qDebug() << "File name without extension:" << fileNameWithoutExtension;
+            QString coordinatesfilefilePath = projected_coordinates + "/"+fileNameWithoutExtension+"proj_coords.txt";
+
+            QDir projected_coordinatesdir(projected_coordinates);  // 创建 QDir 对象以表示目录
+
+            // 获取目录中的所有文件和子目录
+            QFileInfoList fileInfoList = projected_coordinatesdir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+            QStringList xposition, yposition;
+            // 遍历文件列表
+            bool ifhere=false;
+            for (const QFileInfo& fileInfo : fileInfoList) {
+                if (fileInfo.fileName() == fileNameWithoutExtension+"proj_coords.txt") {  // 检查文件名是否匹配
+                    ifhere = true;
+                    QFile projected_coordinatesfile(coordinatesfilefilePath);
+                    if (!projected_coordinatesfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        qDebug() << "Could not open file!";
+                        return;
+                    }
+
+                    QTextStream incoordinatesfile(&projected_coordinatesfile);
+
+                    while (!incoordinatesfile.atEnd()) {
+                        QString line = incoordinatesfile.readLine();
+
+                        // 按逗号分割行内容
+                        QStringList parts = line.split(",");
+                        if (parts.size() >= 2) { // 确保有至少两列数据
+                            xposition.append(parts[0]); // 保存第一列到xposition
+                            yposition.append(parts[1]); // 保存第二列到yposition
+                        }
+                    }
+
+                    // 关闭文件
+                    projected_coordinatesfile.close();
+                }
+
+            }
+
+            if(!ifhere){
+                qDebug() << "projected_coordinates:" << projected_coordinates;
+                QString program = "D:/QT6_code/test/bins/inverse.exe";
+                QStringList arguments;
+                arguments << filePath;
+                QDir dir(projected_coordinates);
+                // dir.cdUp();
+                QString work = dir.path();
+                qDebug() << "setWorkingDirectory projected_coordinates"<<  work;
+                QProcess *process = new QProcess();
+                process->setWorkingDirectory(work);
+                process->start(program, arguments);
+
+                if (!process->waitForStarted()) {
+                    QString output = process->readAllStandardOutput().data();
+                    QString errorOutput = process->readAllStandardError().data();
+                    qDebug()<< output << errorOutput;
+                    return;
+                }
+
+                if (!process->waitForFinished(-1)) {
+                    QString output = process->readAllStandardOutput().data();
+                    QString errorOutput = process->readAllStandardError().data();
+                    qDebug()<< output << errorOutput;
+                    return;
+                }
+
+                QString output = process->readAllStandardOutput().data();
+                QString errorOutput = process->readAllStandardError().data();
+                qDebug()<< output << errorOutput;
+
+                QFile projected_coordinatesfile(coordinatesfilefilePath);
+                if (!projected_coordinatesfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    qDebug() << "Could not open file!";
+                    return;
+                }
+
+                QTextStream incoordinatesfile(&projected_coordinatesfile);
+
+                while (!incoordinatesfile.atEnd()) {
+                    QString line = incoordinatesfile.readLine();
+
+                    // 按逗号分割行内容
+                    QStringList parts = line.split(",");
+                    if (parts.size() >= 2) { // 确保有至少两列数据
+                        xposition.append(parts[0]); // 保存第一列到xposition
+                        yposition.append(parts[1]); // 保存第二列到yposition
+                    }
+                }
+
+                // 关闭文件
+                projected_coordinatesfile.close();
+
+            }
+            QStringList xdraw,ydraw;
+            if (!xposition.isEmpty()) {
+                auto minElement = std::min_element(xposition.begin(), xposition.end());
+                int minValue = minElement->toFloat();
+                // 打印最小值
+                if (minElement != xposition.end()) {
+                    std::cout << "Minimum value: " << minElement->toStdString() << std::endl;
+                }
+                for (auto& str : xposition) {
+                    int newValue = str.toFloat() - minValue;
+                    xdraw << QString::number(newValue);  // 更新 QStringList 中的值
+                }
+            }
+            if (!yposition.isEmpty()) {
+                auto minElement = std::min_element(yposition.begin(), yposition.end());
+                int minValue = minElement->toFloat();
+                // 打印最小值
+                if (minElement != yposition.end()) {
+                    std::cout << "Minimum value: " << minElement->toStdString() << std::endl;
+                }
+                for (auto& str : yposition) {
+                    int newValue = str.toFloat() - minValue;
+                    ydraw << QString::number(newValue);  // 更新 QStringList 中的值
+                }
+            }
+            qDebug() << "xposition:" << xposition.size();
+            qDebug() << "yposition:" << yposition.size();
+
+
+            QWidget *plotWidget = new QWidget();
+            QVBoxLayout *layout = new QVBoxLayout(plotWidget);
+            Plot *qwtPlot = new Plot();
+            // 设置 X 轴名称
+            qwtPlot->setAxisTitle(QwtPlot::xBottom, "Distance / m");
+
+            // 设置 Y 轴名称
+            qwtPlot->setAxisTitle(QwtPlot::yLeft, "High / m");
+            // CustomScaleDraw *scaleDraw = new CustomScaleDraw();
+            // qwtPlot->setAxisScaleDraw(QwtPlot::xBottom, scaleDraw);
+            // 创建 QwtPlotCurve (示例曲线)
+            QwtPlotGrid* grid = new QwtPlotGrid();
+            grid->attach(qwtPlot);
+            QwtPlotCurve  *curve = new QwtPlotCurve ();
+            QVector<QPointF> points;
+            curve->setPen( Qt::blue, 1 ),
+                curve->setRenderHint( QwtPlotItem::RenderAntialiased, true );
+            // QwtSymbol* symbol = new QwtSymbol( QwtSymbol::Ellipse,
+            //                                   QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
+            // curve->setSymbol( symbol );
+            for (int i = 0; i < xposition.size(); i++) {
+                // qDebug()<<  ts3hz[i][4];
+                points << QPointF(xdraw[i].toFloat(), ydraw[i].toFloat());        // 确保 QPointF 的两个参数都是 double
+            }
+
+            // points << QPointF(0.0, 0.0) << QPointF(1.0, 2.0) << QPointF(2.0, 1.0) << QPointF(3.0, 3.0);
+
+            curve->setSamples(points);
+            qwtPlot->setSamplesLIN(curve,points,timelin);
+            curve->attach(qwtPlot);
+            // 将 QwtPlot 添加到布局中
+            layout->addWidget(qwtPlot);
+
+            if (ui->show_part->count() == 0) {
+                ui->show_part->insertTab(0,plotWidget,tabName);
+                ui->show_part->removeTab(0);
+                ui->show_part->insertTab(0,plotWidget,tabName);
+            }else{
+                ui->show_part->insertTab(0,plotWidget,tabName);
+                ui->show_part->removeTab(-1);
+                ui->show_part->insertTab(0,plotWidget,tabName);
+            }
+            connect(qwtPlot, &Plot::LINtime, this, &MainWindow::checkLINtime);
+
+        }
+        if (fileInfo.fileName().endsWith("tipper") or fileInfo.fileName().endsWith("pmt.txt") or fileInfo.fileName().endsWith("ance.txt")){
             QFile file(filePath);
             if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
                 QMessageBox::warning(this, "错误", "无法打开文件");
@@ -332,20 +802,129 @@ void MainWindow::doubleClick(const QString &filePath) {
             }
 
         }
-        if(fileInfo.fileName().endsWith("TS3.txt")){
+        if(fileInfo.fileName().endsWith("TS3.txt") ){
             QFile file(filePath);
             if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
                 QMessageBox::warning(this, "错误", "无法打开文件");
                 return;
             }
             qDebug()<< "douclick clicked file"<<filePath;
-            TimeSeries ts3(filePath);
-            // QVector<QVector<double>> ts3datas= ts3.getdata();
-            QVector<QDateTime> ts3time=ts3.getTimeData();
 
-            QVector<QVector<double>> ts3hz=ts3.getData();
-            qDebug()<< "ts3time.size()"<<ts3time.size()<<ts3hz.size();
 
+            QTextStream in(&file);
+            QStringList lines;
+
+            // 读取并修剪空白字符，去除空行
+            while (!in.atEnd()) {
+                QString line = in.readLine().trimmed();
+                if (!line.isEmpty()) {
+                    lines.append(line);
+                }
+            }
+            file.close(); // 关闭文件
+            // 解析开始时间
+            QString startTimeString = lines[0].mid(5).trimmed();
+            QDateTime startTime = QDateTime::fromString(startTimeString, "yyyy/MM/dd HH:mm:ss");
+
+            // 解析采样频率
+            QString freqString = lines[3].split(":")[1].trimmed();
+            int sampleFreq = freqString.toInt();
+
+            // QString endTimeString = lines[-(sampleFreq+5)].mid(5).trimmed();
+            QDateTime endTime;
+
+            int endIndex = lines.size() - (sampleFreq + 5);
+            if (endIndex >= 0 && endIndex < lines.size()) {
+                QString endTimeString = lines[endIndex].mid(5).trimmed();
+                endTime = QDateTime::fromString(endTimeString, "yyyy/MM/dd HH:mm:ss");
+            }
+            QVector<QDateTime> ts3time;
+            QVector<QVector<double>> ts3hz;
+            qDebug() << "startTime"<<  startTime<< "endTime"<< endTime ;
+            // 弹出时间选择窗口
+            TimeRangeDialog dialog(startTime, endTime);
+            if (dialog.exec() == QDialog::Accepted) {
+                QProgressDialog progressDialog("绘制中...", "取消", 0, 0, this);
+                progressDialog.setWindowModality(Qt::WindowModal);
+                progressDialog.setAutoClose(true);  // 完成后自动关闭
+                progressDialog.setAutoReset(true);
+                progressDialog.setCancelButton(nullptr);  // 不显示取消按钮
+                progressDialog.setWindowTitle("绘制中...请稍等");
+                progressDialog.show();
+
+                // 立即刷新UI以显示弹窗
+                QCoreApplication::processEvents();
+                // 获取用户选择的时间范围
+                QPair<QTime, QTime> selectedTimes = dialog.getSelectedTimeRange();
+
+                QDateTime actualStart = startTime;
+                QDateTime actualEnd = endTime;
+                actualStart.setTime(selectedTimes.first);
+                actualEnd.setTime(selectedTimes.second);
+                qDebug()<< "actualStart"<<actualStart<< "actualEnd" << actualEnd;
+                // 根据用户选择的时间范围读取数据
+                TimeSeries ts3(filePath);
+
+                ts3.readfilepart(actualStart,actualEnd);
+                ts3time=ts3.getTimeData();
+
+                ts3hz=ts3.getData();
+                qDebug()<< "ts3time.size()"<<ts3time.size()<<ts3hz.size();
+
+                QString tabName = fileInfo.fileName();
+
+                // QTextStream in(&file);
+                // QString content = in.readAll();
+                // file.close();
+                //图像模拟
+                QWidget *plotWidget = new QWidget();
+                QVBoxLayout *layout = new QVBoxLayout(plotWidget);
+                Plot *qwtPlot = new Plot();
+                // 设置 X 轴名称
+                qwtPlot->setAxisTitle(QwtPlot::xBottom, "Time");
+
+                // 设置 Y 轴名称
+                qwtPlot->setAxisTitle(QwtPlot::yLeft, "<html>H<sub>z</sub></html>");
+                CustomScaleDraw *scaleDraw = new CustomScaleDraw();
+                qwtPlot->setAxisScaleDraw(QwtPlot::xBottom, scaleDraw);
+                // 创建 QwtPlotCurve (示例曲线)
+                QwtPlotGrid* grid = new QwtPlotGrid();
+                grid->attach(qwtPlot);
+                QwtPlotCurve  *curve = new QwtPlotCurve ();
+                QVector<QPointF> points;
+                curve->setPen( Qt::blue, 1 ),
+                    curve->setRenderHint( QwtPlotItem::RenderAntialiased, true );
+                // QwtSymbol* symbol = new QwtSymbol( QwtSymbol::Ellipse,
+                //                                   QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
+                // curve->setSymbol( symbol );
+                for (int i = 0; i < ts3time.size(); i++) {
+                    double timeInSeconds = ts3time[i].toSecsSinceEpoch(); // 将 QDateTime 转换为秒数
+                    // qDebug()<<  ts3hz[i][4];
+                    points << QPointF(timeInSeconds, ts3hz[i][4]);        // 确保 QPointF 的两个参数都是 double
+                }
+
+                // points << QPointF(0.0, 0.0) << QPointF(1.0, 2.0) << QPointF(2.0, 1.0) << QPointF(3.0, 3.0);
+
+                curve->setSamples(points);
+                qwtPlot->setSamples(curve,points);
+                curve->attach(qwtPlot);
+                // 将 QwtPlot 添加到布局中
+                layout->addWidget(qwtPlot);
+
+
+                if (ui->show_part->count() == 0) {
+                    ui->show_part->insertTab(0,plotWidget,tabName);
+                    ui->show_part->removeTab(0);
+                    ui->show_part->insertTab(0,plotWidget,tabName);
+                }else{
+                    ui->show_part->insertTab(0,plotWidget,tabName);
+                    ui->show_part->removeTab(-1);
+                    ui->show_part->insertTab(0,plotWidget,tabName);
+                }
+                progressDialog.close();
+            }else{
+                return;
+            }
 
             // QVector<QDateTime> ts3time;
             // QVector<QVector<double>> ts3hz;
@@ -371,60 +950,93 @@ void MainWindow::doubleClick(const QString &filePath) {
             // thread->start();
 
 
-            QString tabName = fileInfo.fileName();
 
-            // QTextStream in(&file);
-            // QString content = in.readAll();
-            // file.close();
-            //图像模拟
-            QWidget *plotWidget = new QWidget();
-            QVBoxLayout *layout = new QVBoxLayout(plotWidget);
-            Plot *qwtPlot = new Plot();
-            // 设置 X 轴名称
-            qwtPlot->setAxisTitle(QwtPlot::xBottom, "Time");
-
-            // 设置 Y 轴名称
-            qwtPlot->setAxisTitle(QwtPlot::yLeft, "<html>H<sub>z</sub></html>");
-            CustomScaleDraw *scaleDraw = new CustomScaleDraw();
-            qwtPlot->setAxisScaleDraw(QwtPlot::xBottom, scaleDraw);
-            // 创建 QwtPlotCurve (示例曲线)
-            QwtPlotGrid* grid = new QwtPlotGrid();
-            grid->attach(qwtPlot);
-            QwtPlotCurve  *curve = new QwtPlotCurve ();
-            QVector<QPointF> points;
-            curve->setPen( Qt::blue, 1 ),
-                curve->setRenderHint( QwtPlotItem::RenderAntialiased, true );
-            // QwtSymbol* symbol = new QwtSymbol( QwtSymbol::Ellipse,
-            //                                   QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
-            // curve->setSymbol( symbol );
-            for (int i = 0; i < ts3time.size(); i++) {
-                double timeInSeconds = ts3time[i].toSecsSinceEpoch(); // 将 QDateTime 转换为秒数
-                points << QPointF(timeInSeconds, ts3hz[i][4]);        // 确保 QPointF 的两个参数都是 double
-            }
-
-            // points << QPointF(0.0, 0.0) << QPointF(1.0, 2.0) << QPointF(2.0, 1.0) << QPointF(3.0, 3.0);
-
-            curve->setSamples(points);
-            qwtPlot->setSamples(curve,points);
-            curve->attach(qwtPlot);
-            // 将 QwtPlot 添加到布局中
-            layout->addWidget(qwtPlot);
-
-
-            if (ui->show_part->count() == 0) {
-                ui->show_part->insertTab(0,plotWidget,tabName);
-                ui->show_part->removeTab(0);
-                ui->show_part->insertTab(0,plotWidget,tabName);
-            }else{
-                ui->show_part->insertTab(0,plotWidget,tabName);
-                ui->show_part->removeTab(-1);
-                ui->show_part->insertTab(0,plotWidget,tabName);
-            }
             ui->show_part->setCurrentIndex(0);
         }
 
     }
 }
+
+void MainWindow::checkLINtime(QString starttime,QString endtime){
+    qDebug()<< "starttime"<< starttime << "endtime"<<endtime;
+    Starttime=starttime;
+    Endtime=endtime;
+    // 第一个提示窗口，询问用户是否要分割测线
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "分割测线", "是否分割测线？",
+                                  QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+
+        bool ok;
+        QString lineName = QInputDialog::getText(this, "输入测线名称",
+                                                 "测线名称:", QLineEdit::Normal, "", &ok);
+        if (ok && !lineName.isEmpty()) {
+
+            // QMessageBox::information(this, "测线名称", "您输入的测线名称是: " + lineName);
+
+            linname = lineName;
+            //添加测线名称到
+            // 找到 CustomQTreeWidget 对象
+            CustomQTreeWidget* customTreeWidget = this->findChild<CustomQTreeWidget*>();
+            if (!customTreeWidget) {
+                qDebug() << "CustomQTreeWidget not found.";
+                return;
+            }
+
+            // 遍历 CustomQTreeWidget 中的所有顶层项
+            bool foundMatchingType = false;
+            for (int i = 0; i < customTreeWidget->topLevelItemCount(); ++i) {
+                QTreeWidgetItem* item = customTreeWidget->topLevelItem(i);
+                this->iterateTreeItemsforLIN(item, linname);  // 调用递归函数
+
+                break;
+            }
+            foundMatchingType = true;
+            if (!foundMatchingType) {
+                qDebug() << "No matching filetype found in QTreeWidget.";
+            }
+
+        } else {
+            // 用户取消输入
+            QMessageBox::warning(this, "操作取消", "用户取消操作。");
+        }
+    } else {
+        // 用户取消操作。
+        QMessageBox::information(this, "操作", "用户取消操作。");
+    }
+
+
+}
+
+void MainWindow::iterateTreeItemsforLIN(QTreeWidgetItem* parentItem, const QString& itemname) {
+    if (!parentItem) {
+
+        return;  // 如果 parentItem 是空，直接返回
+    }
+
+    // 检查当前项是否匹配指定的 filetype
+    if (parentItem->text(0)== "LINlines") {
+        // 找到匹配的 filetype，创建新的 QTreeWidgetItem
+        QTreeWidgetItem* newItem = new QTreeWidgetItem();
+
+        newItem->setText(0, itemname);
+        newItem->setData(0, Qt::UserRole, Starttime+","+Endtime);
+
+        // 添加新项到匹配的 QTreeWidgetItem 下
+        parentItem->addChild(newItem);
+        qDebug()<<"set "<< itemname << "at "<< Starttime+","+Endtime;
+        destinationPath = parentItem->data(0, Qt::UserRole).toString();
+        return; // 由于找到匹配的 filetype，我们可以退出（除非你想继续查找）
+    }
+
+    // 递归检查当前项的所有子项
+    for (int i = 0; i < parentItem->childCount(); ++i) {
+        QTreeWidgetItem* childItem = parentItem->child(i);
+        iterateTreeItemsforLIN(childItem, itemname);  // 递归调用
+    }
+}
+
 void MainWindow::iterateTreeItems(QTreeWidgetItem* parentItem, const QString& filetype, const QString& filepath) {
     if (!parentItem) {
 
@@ -496,7 +1108,7 @@ void MainWindow::processFileImport(const QStringList &fileInfoList) {
     }
 
 
-    // 源文件夹路径和目标文件夹路径
+    // 源文件路径和目标文件夹路径
     QString sourcePath = filepath;
     QFileInfo sourceInfo(sourcePath);
 
@@ -548,23 +1160,42 @@ void MainWindow::buildTree(const QString &path, QTreeWidgetItem *parentItem) {
     dir.setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
 
     QFileInfoList fileInfoList = dir.entryInfoList();
-    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line"};
+    qDebug() << fileInfoList;
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line","LINlines"};
     QStringList allowedExtensions = {"txt","tipper"};
+
     for (const QFileInfo &fileInfo : fileInfoList) {
         QString fileExtension = fileInfo.suffix();
         QTreeWidgetItem *item = new QTreeWidgetItem(parentItem);
         // qDebug() << fileInfo.absoluteFilePath();
         if (allowedExtensions.contains(fileExtension, Qt::CaseInsensitive) || folderNames.contains(fileInfo.fileName(), Qt::CaseInsensitive)
             || fileInfo.fileName().startsWith("line")){
-
+            if (fileInfo.fileName().endsWith("proj_coords.txt"))
+            {
+                continue;
+            }
             item->setText(0, fileInfo.fileName());
             item->setData(0, Qt::UserRole, fileInfo.absoluteFilePath());
+            if(fileInfo.fileName().endsWith("TS3")){
+                item->setIcon(0, QIcon(":/images/TS3.png"));
+            }
+
+            if(fileInfo.fileName().endsWith("LIN")){
+                item->setIcon(0, QIcon(":/images/cutline.png"));
+            }
+            if (fileInfo.fileName().endsWith("Nlines")) {
+                item->setHidden(true);
+            }
+            // if (fileInfo.fileName().startsWith("projected")) {
+            //     item->setHidden(true);
+            // }
             // qDebug() << fileInfo.absoluteFilePath();
         }
 
         if (fileInfo.isDir()) {
             if (folderNames.contains(fileInfo.fileName(), Qt::CaseInsensitive) || fileInfo.fileName().startsWith("line")){
                 buildTree(fileInfo.absoluteFilePath(), item);
+
             }
 
         }
@@ -745,7 +1376,7 @@ void MainWindow::selectFile() {
         }
     }
 
-    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN"};
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines"};
     // 创建工区内的子文件夹
     for (const QString &folderName : folderNames) {
         QDir subDir(fullWorkAreaPath);
@@ -923,17 +1554,21 @@ void MainWindow::Tipper(QStringList &selectedtipperFiles) {
 
     QTreeWidget *customTreeWidget = this->findChild<CustomQTreeWidget*>();
     processlineworking = customTreeWidget->objectName();
-
+    QDir con(processlineworking);
+    processlineworking= con.absolutePath() ;
     QString airTbl = selectedtipperFiles[0];
     QString airTS3 = selectedtipperFiles[1];
     QString groundTbl = selectedtipperFiles[2];
     QString groundTS3 = selectedtipperFiles[3];
     QString LINfile = selectedtipperFiles[4];
-    QString Splittingtime = selectedtipperFiles[5];
+    QString LINname = selectedtipperFiles[5];
+    QString Splittingtime = selectedtipperFiles[6];
     QDir tmp(processlineworking);
     processlinewritefile=processlineworking+"/"+tmp.dirName()+"pmt.pmt";
     QFile file(processlinewritefile);
 
+    std::replace(Starttime.begin(), Starttime.end(), ':', '-');
+    std::replace(Endtime.begin(), Endtime.end(), ':', '-');
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
         out << "resistics\n";
@@ -951,9 +1586,11 @@ void MainWindow::Tipper(QStringList &selectedtipperFiles) {
         // out << "D:/xiongantestdata/test1data/xionganTest/1560bjab.txt\n";
         // out << "D:/xiongantestdata/test1data/xionganTest/1561bjaa.txt\n";
         // out << "D:/xiongantestdata/test1data/xionganTest/1560BJAB.LIN.txt\n";
-        out << "line01\n";
-        out << "2019-11-19-06-15-50\n";
-        out << "2019-11-19-06-33-50\n";
+        out << linname+"\n";
+        out << yearandday+"-"+Starttime+"\n"; //work1
+        out << yearandday+"-"+Endtime+"\n";
+        // out << "2019-11-19-06-15-50\n";
+        // out << "2019-11-19-06-33-50\n";
         out << Splittingtime + "\n";
         out << processlineworking +"\n";
         out << " \n";
@@ -1007,9 +1644,19 @@ void MainWindow::onProcessFinished(const QString &output, const QString &error,c
             // 源文件夹路径和目标文件夹路径
             QString sourcePath = linedir;
             QFileInfo sourceInfo(sourcePath);
-            destinationPath = Path + "/Tipper";
+            QString destdirPath = Path + "/Tipper";
+            QDir dirdes(destdirPath);
+
+            // 检查文件夹是否存在
+            if (!dirdes.exists()) {
+                if (dirdes.mkpath(destdirPath)) {
+                    qDebug() << "Folder created successfully!";
+                } else {
+                    qDebug() << "Failed to create folder!";
+                }
+            }
             QThread* thread = new QThread;
-            CopyWorker* worker = new CopyWorker(sourcePath, destinationPath);
+            CopyWorker* worker = new CopyWorker(sourcePath, destdirPath);
             ProgressDialog* progressDialog = new ProgressDialog(nullptr);
             progressDialog->show();
             worker->moveToThread(thread);
@@ -1056,5 +1703,17 @@ void MainWindow::onProcessFinished(const QString &output, const QString &error,c
     if (dire.exists()) {
         dire.removeRecursively();
     }
-    // this->refresh_view(refresh.absolutePath(),this);
+
+    this->refresh_view(Path,this);
+
+    // 弹出一个提示框
+    QMessageBox msgBox;
+    msgBox.setWindowTitle("提示");
+    msgBox.setText("倾子计算完毕");
+    msgBox.setIcon(QMessageBox::Information);  // 设置图标类型为信息图标
+    msgBox.setStandardButtons(QMessageBox::Ok);  // 设置“确定”按钮
+    msgBox.setDefaultButton(QMessageBox::Ok);    // 默认聚焦“确定”按钮
+
+    // 显示提示框并等待用户点击“确定”
+    msgBox.exec();
 }

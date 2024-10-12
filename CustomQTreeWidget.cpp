@@ -17,13 +17,27 @@ void CustomQTreeWidget::contextMenuEvent(QContextMenuEvent *event) {
     QString filePath = item->data(0, Qt::UserRole).toString();
     filePath_work = this->objectName();
     qDebug() << "filePath_work" << filePath_work;
-    // QFileInfo fileInfo(filePath);
+    QFileInfo fileInfo(filePath);
     // 仅在文件上点击时显示菜单
+    if (QDir(filePath).exists() && fileInfo.fileName().startsWith("line")){
+        QMenu menu(this);
+        QAction *draw = new QAction("绘制", this);
+        QAction *deleteAction = new QAction("删除", this);
+        connect(deleteAction, &QAction::triggered, [this, filePath]() { deleteFile(filePath); });
+        connect(draw, &QAction::triggered, [this, filePath]() { openAction_op(filePath); });
+        menu.addAction(draw);
+        menu.addAction(deleteAction);
+        menu.exec(event->globalPos());
+        return;
+    }
     if (QDir(filePath).exists()) return;
 
     QMenu menu(this);
 
     QAction *openAction = new QAction("打开", this);
+    if (fileInfo.fileName().endsWith(".LIN.txt")){
+        openAction->setText("测线分割");
+    }
     QAction *deleteAction = new QAction("删除", this);
     QAction *propertiesAction = new QAction("属性", this);
     connect(openAction, &QAction::triggered,[this, filePath]() { openAction_op(filePath); });
@@ -77,6 +91,9 @@ void CustomQTreeWidget::removeItemsRecursive(QTreeWidgetItem *item)
 void CustomQTreeWidget::mouseDoubleClickEvent(QMouseEvent *event) {
 
     QTreeWidgetItem *item = itemAt(event->pos());
+    if (!item) {
+        return;
+    }
     QString filePath = item->data(0, Qt::UserRole).toString();
     QFileInfo fileInfo(filePath);
 

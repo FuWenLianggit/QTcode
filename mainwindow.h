@@ -14,6 +14,17 @@
 #include "ProcessLine.h"
 #include "ImportDialog.h"
 QT_BEGIN_NAMESPACE
+
+struct TipperData {
+    QVector<double> frequencies;
+    QVector<double> tipperReal;
+    QVector<double> tipperImag;
+};
+
+struct CoordData {
+    QVector<double> time;
+    QVector<double> distance;
+};
 namespace Ui {
 class MainWindow;
 }
@@ -25,6 +36,10 @@ class MainWindow : public QMainWindow {
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+    QVector<TipperData> getTipperData() const;
+    CoordData getCoordData() const;
+    void processDirectory(const QString& dirPath);
     QString currentPath;
     QString processlinereadfile;
     QString processlinewritefile;
@@ -46,9 +61,10 @@ private slots:
     void onImportTriggered();
     void processFileImport(const QStringList &fileInfoList);
     void iterateTreeItems(QTreeWidgetItem* parentItem, const QString& filetype, const QString& filepath);
+    void iterateTreeItemsforLIN(QTreeWidgetItem* parentItem, const QString& itemname);
     void openTipperDialog();
     void Tipper(QStringList &selectedtipperFiles);
-
+    void checkLINtime(QString starttime,QString endtime);
 private:
     QFileSystemModel *model;
     CustomQTreeWidget *treeView;
@@ -57,6 +73,16 @@ private:
     QPushButton *backButton;
     QStringList selectFilePathandtype;
     Ui::MainWindow *ui;
+    QVector<TipperData> tipperDataList;
+    CoordData coordData;
+
+    QDateTime parseFileNameToDateTime(const QString& fileName);
+    QString Starttime;
+    QString Endtime;
+    QString linname;
+    QString yearandday;
+    void readTipperFile(const QString& filePath);
+    void readCoordDistanceFile(const QString& filePath);
 
 };
 

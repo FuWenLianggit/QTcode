@@ -4,6 +4,7 @@
  *****************************************************************************/
 
 #pragma once
+
 #include <QElapsedTimer>
 #include <Qwt/qwt.h>
 #include <QLabel>
@@ -11,6 +12,34 @@
 #include <qwt_plot_picker.h>  // 这行代码确保包含了 QwtPlotPicker 的声明
 #include <qwt_plot_curve.h>
 #include <QTime>
+
+// 定义 HoverPicker 类
+class HoverPicker : public QwtPlotPicker
+{
+    Q_OBJECT
+
+public:
+    HoverPicker(QWidget* canvas, QwtPlotCurve* curve, QLabel* infoLabel, QStringList &timelist);
+
+    QwtText trackerTextF(const QPointF& pos) const override;
+
+signals:
+    void startandendtime(QString starttime, QString endtime);
+
+protected:
+    void widgetMousePressEvent(QMouseEvent* e) override;
+
+private:
+    QwtPlotCurve* m_curve;
+    QLabel* m_infoLabel;  // 用于显示点信息的标签
+    QPointF m_lastClickedPoint;
+    QTime m_lastClickTime;
+    QStringList &timeslist;
+    QPointF first_node = QPointF(3.14, 3.14);
+    QPointF second_node = QPointF(3.14, 3.14);
+};
+
+// 定义 Plot 类
 class Plot : public QwtPlot
 {
     Q_OBJECT
@@ -19,31 +48,16 @@ public:
     Plot(QWidget* parent = nullptr);
 
     void setSymbol(QwtSymbol* symbol);
-    void setSamples( QwtPlotCurve* curve,const QVector< QPointF >& samples );
-    // void mouseDoubleClickEvent(QMouseEvent* event);
+    void setSamples(QwtPlotCurve* curve, const QVector<QPointF>& samples);
+    void setSamplesLIN(QwtPlotCurve* curve, const QVector<QPointF>& samples, QStringList &timelist);
+    void setSamplesTipper(QwtPlotCurve* curve);
+    void setSamplesLINtime(QString starttime, QString endtime);
+
+signals:
+    void LINtime(QString starttime, QString endtime);
+
 private:
     QwtPlotCurve* m_curve;
     QLabel* m_infoLabel;  // 用于显示点信息的标签
-
-
-
-    class HoverPicker : public QwtPlotPicker
-    {
-    public:
-        HoverPicker(QWidget* canvas, QwtPlotCurve* curve, QLabel* infoLabel);
-
-        QwtText trackerTextF(const QPointF& pos) const override;
-
-    protected:
-        void widgetMousePressEvent(QMouseEvent* e) override;
-
-    private:
-        QwtPlotCurve* m_curve;
-        QLabel* m_infoLabel;  // 用于显示点信息的标签
-        QPointF m_lastClickedPoint;
-        // QElapsedTimer m_lastClickTime;  // 使用 QElapsedTimer 替代 QTime
-        QTime m_lastClickTime;
-        QPointF first_node=QPointF(3.14, 3.14);;
-        QPointF second_node = QPointF(3.14, 3.14);;
-    };
+    QStringList timeslist;
 };

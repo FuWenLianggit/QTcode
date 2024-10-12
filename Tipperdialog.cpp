@@ -31,10 +31,10 @@ void TipperDialog::setupUi()
     nextButton = new QPushButton("下一步", this);
     nextButton->setEnabled(false);
 
-    selectedFiles <<  "airTBL file not found" << "airTS3 file not found" << "groundTBL file not found" << "groundTS3 file not found" << "LIN file not found" <<"Splitting time not found";
+    selectedFiles <<  "airTBL file not found" << "airTS3 file not found" << "groundTBL file not found" << "groundTS3 file not found" << "LIN file not found"<<"LINlines not found" <<"Splitting time not found";
     // 添加选项到 list1
     // {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN"};
-    options << "AirTBL" << "AirTS3" << "GroundTBL" << "GroundTS3" << "LIN" << "Splitting time";
+    options << "AirTBL" << "AirTS3" << "GroundTBL" << "GroundTS3" << "LIN"<< "LINlines" << "Splitting time";
     for (const QString &option : options) {
         QListWidgetItem *item = new QListWidgetItem(option, list1);
         item->setFlags(item->flags() & ~Qt::ItemIsEnabled); // 初始时禁用所有选项
@@ -234,6 +234,9 @@ void TipperDialog::onNextButtonClicked()
     for (QString option : options){
         if (option == list1->currentItem()->text()){
             selectedFiles[optionsmem]=filePath;
+            if (list1->currentItem()->text() == "LINlines"){
+                selectedFiles[optionsmem]=selectedItem->text();
+            }
         }
         if (option =="Splitting time" && value != ""){
             selectedFiles[optionsmem]=value;
