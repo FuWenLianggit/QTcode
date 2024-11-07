@@ -74,7 +74,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), model(new QFileSystemModel(this)), tabWidget(new QTabWidget(this)),ui(new Ui::MainWindow){
 
     ui->setupUi(this);
-    setWindowTitle("预处理");
+    setWindowTitle("航空电磁数据预处理软件");
     this->setFixedSize(1200, 800);
     move(100,0);
     std::string meipassPath = "";
@@ -204,19 +204,24 @@ void MainWindow::openFile(){
         }
     }
     if (missingFolders) {
-        QString message = "以下文件夹不存在：\n" + missingFolderNames.join("\n") + "\n是否要创建这些文件夹？";
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "创建文件夹", message, QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            foreach (const QString &folderName, missingFolderNames) {
-                if (!dir_open.mkpath(folderName)) {
-                    QMessageBox::warning(this, "创建失败", "无法创建文件夹: " + folderName);
+        // QString message = "以下文件夹不存在：\n" + missingFolderNames.join("\n") + "\n是否要创建这些文件夹？";
+        // QMessageBox::StandardButton reply;
+        // reply = QMessageBox::question(this, "创建文件夹", message, QMessageBox::Yes | QMessageBox::No);
+        // if (reply == QMessageBox::Yes) {
+        //     foreach (const QString &folderName, missingFolderNames) {
+        //         if (!dir_open.mkpath(folderName)) {
+        //             QMessageBox::warning(this, "创建失败", "无法创建文件夹: " + folderName);
+        //         }
+        //     }
+        // }
+        // if (reply == QMessageBox::No){
+        //     QMessageBox::warning(this, "缺少文件", "以下文件夹不存在：\n"+missingFolderNames.join("\n")+"\n部分处理可能无法继续");
+        // }
+        foreach (const QString &folderName, missingFolderNames) {
+                    if (!dir_open.mkpath(folderName)) {
+                        QMessageBox::warning(this, "创建失败", "无法创建文件夹: " + folderName);
+                    }
                 }
-            }
-        }
-        if (reply == QMessageBox::No){
-            QMessageBox::warning(this, "缺少文件", "以下文件夹不存在：\n"+missingFolderNames.join("\n")+"\n部分处理可能无法继续");
-        }
         QString parent_dir=dir_open.path();
         this->new_view(&parent_dir);
     }else{
@@ -548,6 +553,13 @@ void MainWindow::doubleClick(const QString &filePath) {
 
     } else if (fileInfo.isFile()) {
         if (fileInfo.fileName().endsWith("LIN.txt")){
+            QProgressDialog progressDialog("绘制中...", "取消", 0, 0, this);
+            progressDialog.setWindowModality(Qt::WindowModal);
+            progressDialog.setAutoClose(true);  // 完成后自动关闭
+            progressDialog.setAutoReset(true);
+            progressDialog.setCancelButton(nullptr);  // 不显示取消按钮
+            progressDialog.setWindowTitle("飞行轨迹绘制中...请稍等");
+            progressDialog.show();
             QString tabName = fileInfo.fileName();
             QFile file(filePath);
 
@@ -615,8 +627,11 @@ void MainWindow::doubleClick(const QString &filePath) {
             // 遍历文件列表
             bool ifhere=false;
             for (const QFileInfo& fileInfo : fileInfoList) {
+
+                // qDebug() << "File name in:" << coordinatesfilefilePath << fileInfo.fileName() << "compare to "<<fileNameWithoutExtension+"proj_coords.txt";
                 if (fileInfo.fileName() == fileNameWithoutExtension+"proj_coords.txt") {  // 检查文件名是否匹配
                     ifhere = true;
+                    qDebug() << "open the File name with extension:" << coordinatesfilefilePath;
                     QFile projected_coordinatesfile(coordinatesfilefilePath);
                     if (!projected_coordinatesfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
                         qDebug() << "Could not open file!";
@@ -644,7 +659,9 @@ void MainWindow::doubleClick(const QString &filePath) {
 
             if(!ifhere){
                 qDebug() << "projected_coordinates:" << projected_coordinates;
-                QString program = "D:/QT6_code/test/bins/inverse.exe";
+                QString exePath = QDir::currentPath() + "/bins/inverse.exe";
+                QString program = exePath;
+                // QString program = "D:/QT6_code/test/bins/inverse.exe";
                 QStringList arguments;
                 arguments << filePath;
                 QDir dir(projected_coordinates);
@@ -729,10 +746,10 @@ void MainWindow::doubleClick(const QString &filePath) {
             QVBoxLayout *layout = new QVBoxLayout(plotWidget);
             Plot *qwtPlot = new Plot();
             // 设置 X 轴名称
-            qwtPlot->setAxisTitle(QwtPlot::xBottom, "Distance / m");
+            qwtPlot->setAxisTitle(QwtPlot::xBottom, "X / m");
 
             // 设置 Y 轴名称
-            qwtPlot->setAxisTitle(QwtPlot::yLeft, "High / m");
+            qwtPlot->setAxisTitle(QwtPlot::yLeft, "Y / m");
             // CustomScaleDraw *scaleDraw = new CustomScaleDraw();
             // qwtPlot->setAxisScaleDraw(QwtPlot::xBottom, scaleDraw);
             // 创建 QwtPlotCurve (示例曲线)
@@ -740,11 +757,14 @@ void MainWindow::doubleClick(const QString &filePath) {
             grid->attach(qwtPlot);
             QwtPlotCurve  *curve = new QwtPlotCurve ();
             QVector<QPointF> points;
-            curve->setPen( Qt::blue, 1 ),
-                curve->setRenderHint( QwtPlotItem::RenderAntialiased, true );
-            // QwtSymbol* symbol = new QwtSymbol( QwtSymbol::Ellipse,
-            //                                   QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
-            // curve->setSymbol( symbol );
+            // curve->setStyle(QwtPlotCurve::Dots); // 设置样式为散点图
+            // curve->setPen( Qt::blue, 3 ),
+            //     curve->setRenderHint( QwtPlotItem::RenderAntialiased, true );
+            QwtSymbol* symbol = new QwtSymbol( QwtSymbol::Ellipse,
+                                              QBrush( Qt::blue ), QPen( Qt::blue, 1 ), QSize( 3, 3 ) );
+            curve->setSymbol( symbol );
+            curve->setStyle(QwtPlotCurve::NoCurve);  // 只绘制点，不绘制曲线
+
             for (int i = 0; i < xposition.size(); i++) {
                 // qDebug()<<  ts3hz[i][4];
                 points << QPointF(xdraw[i].toFloat(), ydraw[i].toFloat());        // 确保 QPointF 的两个参数都是 double
@@ -768,6 +788,7 @@ void MainWindow::doubleClick(const QString &filePath) {
                 ui->show_part->insertTab(0,plotWidget,tabName);
             }
             connect(qwtPlot, &Plot::LINtime, this, &MainWindow::checkLINtime);
+            progressDialog.close();
 
         }
         if (fileInfo.fileName().endsWith("tipper") or fileInfo.fileName().endsWith("pmt.txt") or fileInfo.fileName().endsWith("ance.txt")){
@@ -920,8 +941,11 @@ void MainWindow::doubleClick(const QString &filePath) {
                     ui->show_part->insertTab(0,plotWidget,tabName);
                     ui->show_part->removeTab(-1);
                     ui->show_part->insertTab(0,plotWidget,tabName);
+
                 }
                 progressDialog.close();
+
+                ui->show_part->setCurrentIndex(0);
             }else{
                 return;
             }
@@ -951,7 +975,7 @@ void MainWindow::doubleClick(const QString &filePath) {
 
 
 
-            ui->show_part->setCurrentIndex(0);
+
         }
 
     }
@@ -1162,6 +1186,7 @@ void MainWindow::buildTree(const QString &path, QTreeWidgetItem *parentItem) {
     QFileInfoList fileInfoList = dir.entryInfoList();
     qDebug() << fileInfoList;
     QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line","LINlines"};
+    QStringList folderNameszh = {"倾子","空中TS3", "地面TS3", "空中TBL","地面TBL","航线","测线","LINlines"};
     QStringList allowedExtensions = {"txt","tipper"};
 
     for (const QFileInfo &fileInfo : fileInfoList) {
@@ -1174,17 +1199,39 @@ void MainWindow::buildTree(const QString &path, QTreeWidgetItem *parentItem) {
             {
                 continue;
             }
-            item->setText(0, fileInfo.fileName());
-            item->setData(0, Qt::UserRole, fileInfo.absoluteFilePath());
-            if(fileInfo.fileName().endsWith("TS3")){
-                item->setIcon(0, QIcon(":/images/TS3.png"));
-            }
+            if (folderNames.contains(fileInfo.fileName(), Qt::CaseInsensitive)){
+                int index = folderNames.indexOf(fileInfo.fileName(), 0);  // 获取 fileName 的索引位置
+                if (index != -1) {
+                    // 处理找到的位置
+                    item->setText(0, folderNameszh[index]);
+                    item->setData(0, Qt::UserRole, fileInfo.absoluteFilePath());
+                    item->setData(1, Qt::UserRole, fileInfo.fileName());
+                    if(fileInfo.fileName().endsWith("TS3")){
+                        item->setIcon(0, QIcon(":/images/TS3.png"));
+                    }
 
-            if(fileInfo.fileName().endsWith("LIN")){
-                item->setIcon(0, QIcon(":/images/cutline.png"));
-            }
-            if (fileInfo.fileName().endsWith("Nlines")) {
-                item->setHidden(true);
+                    if(fileInfo.fileName().endsWith("LIN")){
+                        item->setIcon(0, QIcon(":/images/cutline.png"));
+                    }
+                    if (fileInfo.fileName().endsWith("Nlines")) {
+                        item->setHidden(true);
+                    }
+
+                }
+            }else
+            {
+                item->setText(0, fileInfo.fileName());
+                item->setData(0, Qt::UserRole, fileInfo.absoluteFilePath());
+                if(fileInfo.fileName().endsWith("TS3")){
+                    item->setIcon(0, QIcon(":/images/TS3.png"));
+                }
+
+                if(fileInfo.fileName().endsWith("LIN")){
+                    item->setIcon(0, QIcon(":/images/cutline.png"));
+                }
+                if (fileInfo.fileName().endsWith("Nlines")) {
+                    item->setHidden(true);
+                }
             }
             // if (fileInfo.fileName().startsWith("projected")) {
             //     item->setHidden(true);
@@ -1362,19 +1409,24 @@ void MainWindow::selectFile() {
     QDir dir(fullWorkAreaPath);
     if (!dir.exists()) {
 
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "新建工区文件夹",
-                                      "工区文件夹不存在，是否新建?",
-                                      QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            if (!dir.mkpath(fullWorkAreaPath)) {
-                QMessageBox::warning(this, "错误", "无法创建工区文件夹！");
-                return;
-            }
-        } else {
+        if (!dir.mkpath(fullWorkAreaPath))
+        {
+            QMessageBox::warning(this, "错误", "无法创建工区文件夹！");
             return;
         }
+    } else {
+        return;
     }
+        // QMessageBox::StandardButton reply;
+        // reply = QMessageBox::question(this, "新建工区文件夹",
+        //                               "工区文件夹不存在，是否新建?",
+        //                               QMessageBox::Yes | QMessageBox::No);
+        // if (reply == QMessageBox::Yes) {
+        //     if (!dir.mkpath(fullWorkAreaPath)) {
+        //         QMessageBox::warning(this, "错误", "无法创建工区文件夹！");
+        //         return;
+        //     }
+
 
     QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines"};
     // 创建工区内的子文件夹
@@ -1586,7 +1638,7 @@ void MainWindow::Tipper(QStringList &selectedtipperFiles) {
         // out << "D:/xiongantestdata/test1data/xionganTest/1560bjab.txt\n";
         // out << "D:/xiongantestdata/test1data/xionganTest/1561bjaa.txt\n";
         // out << "D:/xiongantestdata/test1data/xionganTest/1560BJAB.LIN.txt\n";
-        out << linname+"\n";
+        out << "line"+linname+"\n";
         out << yearandday+"-"+Starttime+"\n"; //work1
         out << yearandday+"-"+Endtime+"\n";
         // out << "2019-11-19-06-15-50\n";
@@ -1606,6 +1658,13 @@ void MainWindow::Tipper(QStringList &selectedtipperFiles) {
 
     // 读入选择的文件或者文件夹整理出的文件
     processlinereadfile=processlinewritefile;
+    progressLineDialog =new QProgressDialog("计算中...", "取消", 0, 0, this);
+    progressLineDialog->setWindowModality(Qt::WindowModal);
+    progressLineDialog->setAutoClose(true);  // 完成后自动关闭
+    progressLineDialog->setAutoReset(true);
+    progressLineDialog->setCancelButton(nullptr);  // 不显示取消按钮
+    progressLineDialog->setWindowTitle("倾子计算中...请稍等");
+    progressLineDialog->show();
     if (!processlinereadfile.isEmpty()){
         // Create and start the process thread
         ProcessLine *processThread = new ProcessLine(this);
@@ -1707,6 +1766,9 @@ void MainWindow::onProcessFinished(const QString &output, const QString &error,c
     this->refresh_view(Path,this);
 
     // 弹出一个提示框
+    progressLineDialog->close();
+    delete progressLineDialog;
+    progressLineDialog = nullptr; // 避免悬空指针
     QMessageBox msgBox;
     msgBox.setWindowTitle("提示");
     msgBox.setText("倾子计算完毕");

@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QTreeView>
 #include <QFileDialog>
+#include <QProgressDialog>
 #include <QtUiTools/QUiLoader>
 #include "CustomQTreeWidget.h"
 #include "ProcessLine.h"
@@ -75,7 +76,7 @@ private:
     Ui::MainWindow *ui;
     QVector<TipperData> tipperDataList;
     CoordData coordData;
-
+    QProgressDialog *progressLineDialog;
     QDateTime parseFileNameToDateTime(const QString& fileName);
     QString Starttime;
     QString Endtime;

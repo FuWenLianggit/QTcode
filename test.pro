@@ -58,8 +58,7 @@ RESOURCES += \
     resources.qrc
 
 DISTFILES += \
-        bins.rc \
-        processLine.exe
+        bins/processLine.exe
 
 OTHER_FILES += \
         processLine.exe

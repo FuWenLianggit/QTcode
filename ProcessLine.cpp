@@ -24,8 +24,10 @@ void ProcessLine::run()
         qDebug() << "Caught exception:" << e.what(); // 输出错误信息
     }
 
-    QString program = "D:/QT6_code/test/bins/processLine.exe";
-    // QString program = QCoreApplication::applicationDirPath() + "/../processLine.exe";
+    // QString program = "D:/QT6_code/test/bins/processLine.exe";
+    QString exePath = QDir::currentPath() + "/bins/processLine.exe";
+    QString program = exePath;
+
     qDebug() << "Program path: " << program;
 
     QStringList arguments;

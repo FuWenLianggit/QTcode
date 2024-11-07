@@ -16,12 +16,14 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <qwt_symbol.h>
+#include <qwt_plot_marker.h>
 // HoverPicker 类的实现
  HoverPicker::HoverPicker(QWidget* canvas, QwtPlotCurve* curve, QLabel* infoLabel,QStringList & timelist)
-    : QwtPlotPicker(canvas), m_curve(curve), m_infoLabel(infoLabel),timeslist(timelist)
+    : QwtPlotPicker(canvas), m_curve(curve), m_infoLabel(infoLabel),timeslists(timelist)
 {
     setTrackerMode(QwtPicker::AlwaysOn);
     setRubberBand(QwtPicker::NoRubberBand);
+    timeslistsize = timeslists.size();
     m_lastClickedPoint = QPointF(); // 初始化最后点击点
 }
 
@@ -34,7 +36,7 @@ QwtText  HoverPicker::trackerTextF(const QPointF& pos) const
     }
 
 
-    double minDist = 10 ; // 使用最小距离阈值
+    double minDist = 20 ; // 使用最小距离阈值
     QPointF closestPoint;
     bool pointFound = false;
 
@@ -65,13 +67,22 @@ QwtText  HoverPicker::trackerTextF(const QPointF& pos) const
         for (int i = 0; i < m_curve->dataSize(); ++i) {
             QPointF sample = m_curve->sample(i);
             if (sample.x() == closestPoint.x() && sample.y() == closestPoint.y()){
-                text = QString("Time: %1").arg(timeslist[i]);
+
+                if (timeslistsize == 1 ){
+                    QDateTime dateTime = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(closestPoint.x()));
+                    QString formattedDate = dateTime.toString("HH:mm:ss"); // Format as needed
+                    text = QString("X: %1\nY: %2")
+                    .arg(formattedDate)
+                        .arg(closestPoint.y());
+                }else{
+                    text = QString("Time: %1").arg(timeslists[i]);
+                }
 
                 qwtText.setText(text);
                 qwtText.setBackgroundBrush(QBrush(Qt::white));
             }
         }
-        qDebug()<<closestPoint;
+
         return qwtText;
     }
     else
@@ -82,9 +93,13 @@ QwtText  HoverPicker::trackerTextF(const QPointF& pos) const
 
 void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
 {
+    if(timeslistsize == 1){return;}
     QTime currentTime = QTime::currentTime();
     bool isDoubleClick = false;
     m_lastClickTime = currentTime;
+    QVector<QColor> m_colors;
+    m_colors.resize(m_curve->dataSize(), Qt::blue);
+
     if (e->button() == Qt::LeftButton && QApplication::keyboardModifiers() & Qt::ControlModifier)
     {
 
@@ -119,12 +134,29 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
 
 
             QPointF mouse_pos =invTransform(canvas()->mapFromGlobal(e->globalPos()));
-            double minDist = 10;
+            double minDist = 20;
             QPointF closestPoint;
 
             if (first_node != QPointF(3.14, 3.14) && second_node != QPointF(3.14, 3.14)) {
                 first_node = QPointF(3.14, 3.14);
                 second_node = QPointF(3.14, 3.14);
+                qDebug()<<"clear point";
+                QVector<QColor> m_colorss;
+                m_colorss.resize(m_curve->dataSize(), Qt::blue);
+
+                for (int j = 0; j < m_curve->dataSize(); ++j) {
+                    QPointF sample = m_curve->sample(j);
+                    QwtPlotMarker *marker = new QwtPlotMarker();
+                    marker->setValue(sample);  // 设置标记点的坐标
+                    marker->setSymbol(new QwtSymbol(QwtSymbol::Ellipse,
+                                                    QBrush(Qt::blue),
+                                                    QPen(Qt::blue,1),
+                                                    QSize(3, 3)));
+                    marker->attach(m_curve->plot());
+
+
+                }
+                m_curve->plot()->replot();
             }
 
             for (int i = 0; i < m_curve->dataSize(); ++i) {
@@ -138,20 +170,33 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                         break;
                     } else {
                         second_node = QPointF(3.14, 3.14);
+
                     }
                 }
             }
 
             bool first_click = (first_node == QPointF(3.14, 3.14));
-            qDebug() << first_click;
+
             if (first_click) {
                 for (int i = 0; i < m_curve->dataSize(); ++i) {
                     QPointF sample = m_curve->sample(i);
+
                     double dist = QLineF(mouse_pos, sample).length();
                     if (dist < minDist){
                         first_node = sample;
                         first_click=false;
-                        qDebug() << first_node.x() << ", " << first_node.y();
+                        m_colors[i] = Qt::red;
+                        // 创建一个标记，用于标记这个点并修改它的颜色
+                        QwtPlotMarker *marker = new QwtPlotMarker();
+                        marker->setValue(sample);  // 设置标记点的坐标
+                        marker->setSymbol(new QwtSymbol(QwtSymbol::Ellipse,
+                                                        QBrush(Qt::red),
+                                                        QPen(Qt::red,1),
+                                                        QSize(3, 3)));
+                        marker->attach(m_curve->plot());
+
+                        m_curve->plot()->replot();
+
                         break;
                     }
                 }
@@ -159,10 +204,20 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                 for (int i = 0; i < m_curve->dataSize(); ++i) {
                     QPointF sample = m_curve->sample(i);
                     double dist = QLineF(mouse_pos, sample).length();
-                    qDebug() << dist<< "," << minDist;
+
                     if (dist < minDist){
                         second_node = sample;
                         first_click=false;
+                        m_colors[i] = Qt::red;
+                        QwtPlotMarker *marker = new QwtPlotMarker();
+                        marker->setValue(sample);  // 设置标记点的坐标
+                        marker->setSymbol(new QwtSymbol(QwtSymbol::Ellipse,
+                                                        QBrush(Qt::red),
+                                                        QPen(Qt::red,1),
+                                                        QSize(3, 3)));
+                        marker->attach(m_curve->plot());
+
+                        m_curve->plot()->replot();
                         qDebug() << second_node.x() << ", " << second_node.y();
                         break;
                     }
@@ -179,13 +234,13 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                 for (int i = 0; i < m_curve->dataSize(); ++i) {
                     QPointF sample = m_curve->sample(i);
                     if (sample.x() == first_node.x() && sample.y() == first_node.y()){
-                        text1 = timeslist[i];
+                        text1 = timeslists[i];
 
                         qwtText.setText(text1);
                         qwtText.setBackgroundBrush(QBrush(Qt::white));
                     }
                     if (sample.x() == second_node.x() && sample.y() == second_node.y()){
-                        text2 = timeslist[i];
+                        text2 = timeslists[i];
 
                         qwtText.setText(text2);
                         qwtText.setBackgroundBrush(QBrush(Qt::white));
@@ -220,7 +275,7 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                 for (int i = 0; i < m_curve->dataSize(); ++i) {
                     QPointF sample = m_curve->sample(i);
                     if (sample.x() == first_node.x() && sample.y() == first_node.y()){
-                        text1 = timeslist[i];
+                        text1 = timeslists[i];
 
                         qwtText.setText(text1);
                         qwtText.setBackgroundBrush(QBrush(Qt::white));
@@ -244,6 +299,7 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                 m_infoLabel->adjustSize();
                 m_infoLabel->show();
             }
+
             qDebug() << first_node.x()<< first_node.x() << ", " << first_node.y() << " | " << second_node.x() << ", " << second_node.y();
 
         }
@@ -353,6 +409,7 @@ void Plot::setSamples( QwtPlotCurve* curve,const QVector< QPointF >& samples )
     });
     qDebug() <<"QwtText1" << curve->dataSize();
     QStringList  nonlist;
+    nonlist<<"-1";
     HoverPicker* hoverPicker = new HoverPicker(canvas(), curve,m_infoLabel, nonlist);
     hoverPicker->setRubberBandPen(QPen(Qt::blue));
     // 右键测距

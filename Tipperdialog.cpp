@@ -34,7 +34,7 @@ void TipperDialog::setupUi()
     selectedFiles <<  "airTBL file not found" << "airTS3 file not found" << "groundTBL file not found" << "groundTS3 file not found" << "LIN file not found"<<"LINlines not found" <<"Splitting time not found";
     // 添加选项到 list1
     // {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN"};
-    options << "AirTBL" << "AirTS3" << "GroundTBL" << "GroundTS3" << "LIN"<< "LINlines" << "Splitting time";
+    options << "空中TBL" << "空中TS3" << "地面TBL" << "地面TS3" << "航线"<< "LINlines" << "分割时间";
     for (const QString &option : options) {
         QListWidgetItem *item = new QListWidgetItem(option, list1);
         item->setFlags(item->flags() & ~Qt::ItemIsEnabled); // 初始时禁用所有选项
@@ -104,6 +104,8 @@ void TipperDialog::checkAndAdjustList1()
 
                     if (!foundFirstMatchingOption) {
                         list1->setCurrentItem(first);  // 将第一个匹配项设为当前选项
+                        QListWidgetItem *list2firstItem = list2->item(0);
+                        list2->setCurrentItem(list2firstItem);
                         foundFirstMatchingOption = true;
                     }
                     break;
@@ -123,7 +125,7 @@ void TipperDialog::checkAndAdjustList1()
 
     for (int i = 0; i < list1->count(); ++i) {
         QListWidgetItem *listItem = list1->item(i);
-        if (list1->item(i)->text() == "Splitting time"){
+        if (list1->item(i)->text() == "分割时间"){
             validOptions << listItem->text();
             listItem->setFlags(listItem->flags() | Qt::ItemIsEnabled);
             listItem->setForeground(QBrush(Qt::black)); // 黑色显示
@@ -137,6 +139,7 @@ void TipperDialog::checkAndAdjustList1()
 
 void TipperDialog::updateNextButtonState()
 {
+    // return;
     nextButton->setEnabled(list2->currentItem() != nullptr);
 }
 
@@ -190,7 +193,7 @@ void TipperDialog::populateList2()
     for (int i = 0; i < customTreeWidget->topLevelItemCount(); ++i) {
         traverseItems(customTreeWidget->topLevelItem(i));
     }
-    if (selectedType == "Splitting time") {
+    if (selectedType == "分割时间") {
         // 创建 QSpinBox
         QSpinBox* spinBox = new QSpinBox(list2);
         spinBox->setValue(40); // 设置默认值为40
@@ -206,7 +209,9 @@ void TipperDialog::populateList2()
 
 void TipperDialog::onList2ItemSelected()
 {
+
     updateNextButtonState();
+
 }
 
 void TipperDialog::onNextButtonClicked()
@@ -238,7 +243,7 @@ void TipperDialog::onNextButtonClicked()
                 selectedFiles[optionsmem]=selectedItem->text();
             }
         }
-        if (option =="Splitting time" && value != ""){
+        if (option =="分割时间" && value != ""){
             selectedFiles[optionsmem]=value;
         }
         optionsmem++;
@@ -263,6 +268,8 @@ void TipperDialog::onNextButtonClicked()
             if (listitem->text() == item->text()){
                 list2->clear();
                 list1->setCurrentItem(nextItem);
+                QListWidgetItem *list2firstItem = list2->item(0);
+                list2->setCurrentItem(list2firstItem);
                 break;
             }
 

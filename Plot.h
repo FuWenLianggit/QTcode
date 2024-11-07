@@ -34,9 +34,10 @@ private:
     QLabel* m_infoLabel;  // 用于显示点信息的标签
     QPointF m_lastClickedPoint;
     QTime m_lastClickTime;
-    QStringList &timeslist;
+    QStringList &timeslists;
     QPointF first_node = QPointF(3.14, 3.14);
     QPointF second_node = QPointF(3.14, 3.14);
+    int timeslistsize;
 };
 
 // 定义 Plot 类
@@ -60,4 +61,5 @@ private:
     QwtPlotCurve* m_curve;
     QLabel* m_infoLabel;  // 用于显示点信息的标签
     QStringList timeslist;
+
 };
