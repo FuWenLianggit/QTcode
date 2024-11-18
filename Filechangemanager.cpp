@@ -1,5 +1,7 @@
 #include "FileChangeManager.h"
 
+// 实现josn管理 待完善
+
 FileChangeManager::FileChangeManager(const QString& jsonFilePath)
     : m_jsonFilePath(jsonFilePath)
 {

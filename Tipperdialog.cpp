@@ -7,6 +7,8 @@
 #include <QFileInfo>
 #include <QDebug>
 #include <QSpinBox>
+
+// 倾子计算参数选择界面实现 将文件路径和参数返回到主界面的tipper中使用
 TipperDialog::TipperDialog(MainWindow *parent)
     : QDialog(parent), currentStep(0), mainWindow(parent)
 {

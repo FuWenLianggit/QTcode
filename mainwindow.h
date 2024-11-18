@@ -14,6 +14,7 @@
 #include "CustomQTreeWidget.h"
 #include "ProcessLine.h"
 #include "ImportDialog.h"
+#include "Inversewindows.h"
 QT_BEGIN_NAMESPACE
 
 struct TipperData {
@@ -24,6 +25,8 @@ struct TipperData {
 
 struct CoordData {
     QVector<double> time;
+    QVector<double> xdistance;
+    QVector<double> ydistance;
     QVector<double> distance;
 };
 namespace Ui {
@@ -41,11 +44,16 @@ public:
     QVector<TipperData> getTipperData() const;
     CoordData getCoordData() const;
     void processDirectory(const QString& dirPath);
+    void iterateTreeItemsfindtipper(QTreeWidgetItem* parentItem, QStringList &tipperfiles);
+
     QString currentPath;
     QString processlinereadfile;
     QString processlinewritefile;
     QString processlineworking;
     QString destinationPath;
+    QString inverseprocesslineworking;
+    QStringList inverseprocessparameters;
+
 private slots:
     void doubleClick(const QString &filePath);
     void selectFile();
@@ -60,12 +68,16 @@ private slots:
     void onTextChanged();
     void saveFile();
     void onImportTriggered();
+    void handleinverse();
+    void readfile_Inv(QStringList linesDIR);
     void processFileImport(const QStringList &fileInfoList);
     void iterateTreeItems(QTreeWidgetItem* parentItem, const QString& filetype, const QString& filepath);
     void iterateTreeItemsforLIN(QTreeWidgetItem* parentItem, const QString& itemname);
     void openTipperDialog();
     void Tipper(QStringList &selectedtipperFiles);
-    void checkLINtime(QString starttime,QString endtime);
+    void checkLINtime(QString starttime,QString endtime,int text1position,int text2position);
+    void onInverseprocessFinished(const QString &output, const QString &error,  const QString &Path);
+
 private:
     QFileSystemModel *model;
     CustomQTreeWidget *treeView;
@@ -82,6 +94,10 @@ private:
     QString Endtime;
     QString linname;
     QString yearandday;
+    QString linestart;
+    QString lineend;
+    QStringList Tempcoordx;
+    QStringList zposition;
     void readTipperFile(const QString& filePath);
     void readCoordDistanceFile(const QString& filePath);
 

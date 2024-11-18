@@ -10,8 +10,6 @@
 #include <QTextStream>
 #include <QInputDialog>
 #include <QtUiTools/QUiLoader>
-#include "ui_mainwindow.h"
-#include "customtabbar.h"
 #include <QTabWidget>
 #include <QTabBar>
 #include <QWidget>
@@ -25,31 +23,33 @@
 #include <string>
 #include <QtConcurrent/QtConcurrent>
 #include <filesystem>
-#include "Plot.h"
-#include "CustomFilterProxyModel.h"
 #include <QAction>
 #include <QMenuBar>
 #include <QMenu>
 #include <QFutureWatcher>
 #include <Qwt/qwt_symbol.h>
-#include "FileDialog.h"
 #include <Qwt/qwt_plot_grid.h>
 #include <qwt_legend.h>
 #include <qwt_plot_magnifier.h>
 #include <qwt_plot_panner.h>
-
+#include "Plot.h"
+// #include "CustomFilterProxyModel.h"
+#include "ui_mainwindow.h"
+#include "customtabbar.h"
 #include "ProcessLine.h"
 #include "TipperDialog.h"
 #include "FileChangeManager.h"
 #include "copyworker.h"
 #include "progressdialog.h"
 #include "CustomScaleDraw.h"
+#include "FileDialog.h"
+#include "Inverseprocess.h"
 #include "TimeSeries.h"
 #include "TimeRangeDialog.h"
 #include <iostream>
 #include <fstream>
-
-
+#include <cmath>
+// 获取当前程序路径 确保运行环境正确
 std::string getExecutablePath() {
     try {
         // 获取当前程序路径
@@ -81,6 +81,8 @@ MainWindow::MainWindow(QWidget *parent)
     std::string tmpDir = getTmpDir(meipassPath);
     std::cout << "Temporary Directory: " << tmpDir << std::endl;
 
+    ui->quzao->deleteLater();
+    // ui->inverse->deleteLater();
 
     ui->show_part->setTabBar(new CustomTabBar(ui->show_part));
     ui->show->addWidget(ui->show_part);
@@ -90,8 +92,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->import_3, &QAction::triggered, this, &MainWindow::onImportTriggered);
     connect(ui->tipper, &QAction::triggered, this, &MainWindow::openTipperDialog);
     connect(ui->close_project_3,&QAction::triggered,this, &MainWindow::closeFile);
-
-
+    connect(ui->inverse_get_data,&QAction::triggered,this, &MainWindow::handleinverse);
 
 
     // QSize size = ui->show_part->size();  // 获取当前大小
@@ -103,69 +104,8 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// // 递归函数，将 sourceDirPath 中的内容复制到 destDirPath
-// bool copyDirectoryContents(const QString &sourceDirPath, const QString &destDirPath) {
-//     QDir sourceDir(sourceDirPath);
-//     if (!sourceDir.exists()) {
-//         qWarning() << "Source directory does not exist:" << sourceDirPath;
-//         return false;
-//     }
 
-//     QDir destDir(destDirPath);
-//     if (!destDir.exists()) {
-//         if (!destDir.mkpath(destDirPath)) {
-//             qWarning() << "Failed to create destination directory:" << destDirPath;
-//             return false;
-//         }
-//     }
-
-//     foreach (QString entry, sourceDir.entryList(QDir::NoDotAndDotDot | QDir::AllEntries)) {
-//         QString sourceEntryPath = sourceDir.absoluteFilePath(entry);
-//         QString destEntryPath = destDir.absoluteFilePath(entry);
-
-//         QFileInfo entryInfo(sourceEntryPath);
-//         if (entryInfo.isDir()) {
-//             // 递归复制子文件夹
-//             if (!copyDirectoryContents(sourceEntryPath, destEntryPath)) {
-//                 return false;
-//             }
-//         } else {
-//             // 复制文件
-//             if (!QFile::copy(sourceEntryPath, destEntryPath)) {
-//                 qWarning() << "Failed to copy file:" << sourceEntryPath << "to" << destEntryPath;
-//                 return false;
-//             }
-//         }
-//     }
-
-//     return true;
-// }
-
-// // 处理单个文件复制的函数
-// bool copyFile(const QString &sourceFilePath, const QString &destFilePath) {
-//     QFileInfo sourceFileInfo(sourceFilePath);
-//     if (!sourceFileInfo.exists()) {
-//         qWarning() << "Source file does not exist:" << sourceFilePath;
-//         return false;
-//     }
-
-//     QDir destDir = QFileInfo(destFilePath).absoluteDir();
-//     if (!destDir.exists()) {
-//         if (!destDir.mkpath(destDir.absolutePath())) {
-//             qWarning() << "Failed to create destination directory:" << destDir.absolutePath();
-//             return false;
-//         }
-//     }
-
-//     if (!QFile::copy(sourceFilePath, destFilePath)) {
-//         qWarning() << "Failed to copy file:" << sourceFilePath << "to" << destFilePath;
-//         return false;
-//     }
-
-//     return true;
-// }
-
-
+//点击 预处理-倾子按钮打开界面
 void MainWindow::openTipperDialog() {
     TipperDialog dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
@@ -174,6 +114,8 @@ void MainWindow::openTipperDialog() {
         this->Tipper(selectedtipperFiles);
     }
 }
+
+//打开导入文件窗口
 void MainWindow::onImportTriggered() {
     ImportDialog importDialog(this);
     if (importDialog.exec() == QDialog::Accepted) {
@@ -185,12 +127,14 @@ void MainWindow::onImportTriggered() {
         }
     }
 }
+
+//完成操作 文件-打开工区
 void MainWindow::openFile(){
     QString fileName = QFileDialog::getOpenFileName(this, "选择 .json 文件", "", "Info Files (*.json)");
     if (fileName.isEmpty()) {
         return;
     }
-    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines"};
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines","Inverse"};
     QDir dir_open(QFileInfo(fileName).absolutePath());
 
 
@@ -247,6 +191,7 @@ void MainWindow::openFile(){
     fileChangeManager.checkAndRecordChanges(fileAndFolderList);
 }
 
+// 实现保存功能 已弃用
 void MainWindow::onTextChanged() {
     // 获取 QTextEdit 对象
     QTextEdit *textEdit = this->findChild<QTextEdit *>();
@@ -272,6 +217,7 @@ void MainWindow::onTextChanged() {
     }
 }
 
+// 实现保存功能 已弃用
 void MainWindow::saveFile() {
     QTextEdit *textEdit = this->findChild<QTextEdit *>();
     if (!textEdit) return;
@@ -308,7 +254,7 @@ void MainWindow::saveFile() {
     }
 }
 
-
+// 读取倾子文件和坐标文件
 void MainWindow::processDirectory(const QString& dirPath) {
     QDir dir(dirPath);
     QStringList filter;
@@ -347,6 +293,7 @@ QDateTime MainWindow::parseFileNameToDateTime(const QString& fileName) {
     return QDateTime();
 }
 
+// 读取倾子文件
 void MainWindow::readTipperFile(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -377,6 +324,7 @@ void MainWindow::readTipperFile(const QString& filePath) {
     tipperDataList.append(data);
 }
 
+// 读取坐标文件
 void MainWindow::readCoordDistanceFile(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -391,20 +339,29 @@ void MainWindow::readCoordDistanceFile(const QString& filePath) {
 
         if (parts.size() >= 4) {
             coordData.time.append(parts[0].toDouble());
+            coordData.xdistance.append(parts[1].toDouble());
+            coordData.ydistance.append(parts[2].toDouble());
             coordData.distance.append(parts[3].toDouble());
         }
     }
 }
 
+//获取定义在类的私有属性的倾子数据
 QVector<TipperData> MainWindow::getTipperData() const {
     return tipperDataList;
 }
 
+//获取定义在类的私有属性的坐标数据
 CoordData MainWindow::getCoordData() const {
     return coordData;
 }
 
-
+//左侧列表项目的双击操作，同时对应 打开 绘制 等操作
+//针对于line文件夹处理并绘制倾子
+// 针对于LIN.txt绘制飞行轨迹
+// 针对于其他不用于绘制用途文件显示内容
+// 针对于TS3文件绘制原始数据
+//注释部分使用原始方案绘制，渲染可能存在问题
 void MainWindow::doubleClick(const QString &filePath) {
     QFileInfo fileInfo(filePath);
 
@@ -413,6 +370,8 @@ void MainWindow::doubleClick(const QString &filePath) {
         QString tabName = fileInfo.fileName();
         qDebug() << "filedir:" << filedir;
         tipperDataList.clear();
+        coordData.xdistance.clear();
+        coordData.ydistance.clear();
         coordData.distance.clear();
         coordData.time.clear();
         this->processDirectory(filedir);
@@ -431,7 +390,7 @@ void MainWindow::doubleClick(const QString &filePath) {
         QList<double> coordDatas;
         coordDatas = coordData.distance;
         qDebug() << "Coord Distance:" << coordData.distance;
-
+        try{
         //图像模拟
         QWidget *plotWidget = new QWidget();
         QVBoxLayout *layout = new QVBoxLayout(plotWidget);
@@ -472,6 +431,7 @@ void MainWindow::doubleClick(const QString &filePath) {
         // QwtPlotPanner* imagPanner = new QwtPlotPanner(imagPlot->canvas());
         // imagPanner->setMouseButton(Qt::LeftButton);
 
+        qDebug() << "Check ";
         // 遍历所有频率数据，分别绘制实部和虚部
         for (int i = 0; i < frequencies[0].size(); ++i) {
             const QList<double>& currentFreqReal = tipperReal[i];
@@ -493,7 +453,7 @@ void MainWindow::doubleClick(const QString &filePath) {
             // realPlot->setSamplesTipper(curve);
             // imagPlot->setSamplesTipper(iamgcurve);
         }
-
+        qDebug() << "Check ";
 
         // // 遍历所有频率数据，分别绘制实部和虚部
         // for (int i = 0; i < frequencies[0].size(); ++i) {
@@ -548,18 +508,22 @@ void MainWindow::doubleClick(const QString &filePath) {
             ui->show_part->removeTab(-1);
             ui->show_part->insertTab(0,plotWidget,tabName);
         }
+        }
+        catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Error: " << e.what() << '\n';
 
-
+        }
 
     } else if (fileInfo.isFile()) {
         if (fileInfo.fileName().endsWith("LIN.txt")){
-            QProgressDialog progressDialog("绘制中...", "取消", 0, 0, this);
-            progressDialog.setWindowModality(Qt::WindowModal);
-            progressDialog.setAutoClose(true);  // 完成后自动关闭
-            progressDialog.setAutoReset(true);
-            progressDialog.setCancelButton(nullptr);  // 不显示取消按钮
-            progressDialog.setWindowTitle("飞行轨迹绘制中...请稍等");
-            progressDialog.show();
+            // QProgressDialog progressDialog("绘制中...", "取消", 0, 0, this);
+            QProgressDialog *progressDialog =new QProgressDialog("绘制中...", "取消", 0, 0, this);
+            progressDialog->setWindowModality(Qt::WindowModal);
+            progressDialog->setAutoClose(true);  // 完成后自动关闭
+            progressDialog->setAutoReset(true);
+            progressDialog->setCancelButton(nullptr);  // 不显示取消按钮
+            progressDialog->setWindowTitle("飞行轨迹绘制中...请稍等");
+            progressDialog->show();
             QString tabName = fileInfo.fileName();
             QFile file(filePath);
 
@@ -624,6 +588,7 @@ void MainWindow::doubleClick(const QString &filePath) {
             // 获取目录中的所有文件和子目录
             QFileInfoList fileInfoList = projected_coordinatesdir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
             QStringList xposition, yposition;
+
             // 遍历文件列表
             bool ifhere=false;
             for (const QFileInfo& fileInfo : fileInfoList) {
@@ -648,6 +613,7 @@ void MainWindow::doubleClick(const QString &filePath) {
                         if (parts.size() >= 2) { // 确保有至少两列数据
                             xposition.append(parts[0]); // 保存第一列到xposition
                             yposition.append(parts[1]); // 保存第二列到yposition
+
                         }
                     }
 
@@ -706,6 +672,7 @@ void MainWindow::doubleClick(const QString &filePath) {
                     if (parts.size() >= 2) { // 确保有至少两列数据
                         xposition.append(parts[0]); // 保存第一列到xposition
                         yposition.append(parts[1]); // 保存第二列到yposition
+
                     }
                 }
 
@@ -713,6 +680,9 @@ void MainWindow::doubleClick(const QString &filePath) {
                 projected_coordinatesfile.close();
 
             }
+
+
+            // 将xy坐标更新为从0开始 用来绘制图形
             QStringList xdraw,ydraw;
             if (!xposition.isEmpty()) {
                 auto minElement = std::min_element(xposition.begin(), xposition.end());
@@ -726,6 +696,7 @@ void MainWindow::doubleClick(const QString &filePath) {
                     xdraw << QString::number(newValue);  // 更新 QStringList 中的值
                 }
             }
+
             if (!yposition.isEmpty()) {
                 auto minElement = std::min_element(yposition.begin(), yposition.end());
                 int minValue = minElement->toFloat();
@@ -788,7 +759,10 @@ void MainWindow::doubleClick(const QString &filePath) {
                 ui->show_part->insertTab(0,plotWidget,tabName);
             }
             connect(qwtPlot, &Plot::LINtime, this, &MainWindow::checkLINtime);
-            progressDialog.close();
+            progressDialog->close();
+            delete progressDialog;
+            progressDialog = nullptr; // 避免悬空指针
+
 
         }
         if (fileInfo.fileName().endsWith("tipper") or fileInfo.fileName().endsWith("pmt.txt") or fileInfo.fileName().endsWith("ance.txt")){
@@ -865,13 +839,14 @@ void MainWindow::doubleClick(const QString &filePath) {
             // 弹出时间选择窗口
             TimeRangeDialog dialog(startTime, endTime);
             if (dialog.exec() == QDialog::Accepted) {
-                QProgressDialog progressDialog("绘制中...", "取消", 0, 0, this);
-                progressDialog.setWindowModality(Qt::WindowModal);
-                progressDialog.setAutoClose(true);  // 完成后自动关闭
-                progressDialog.setAutoReset(true);
-                progressDialog.setCancelButton(nullptr);  // 不显示取消按钮
-                progressDialog.setWindowTitle("绘制中...请稍等");
-                progressDialog.show();
+                QProgressDialog *progressDialog =new QProgressDialog("绘制中...", "取消", 0, 0, this);
+                // QProgressDialog progressDialog("绘制中...", "取消", 0, 0, this);
+                progressDialog->setWindowModality(Qt::WindowModal);
+                progressDialog->setAutoClose(true);  // 完成后自动关闭
+                progressDialog->setAutoReset(true);
+                progressDialog->setCancelButton(nullptr);  // 不显示取消按钮
+                progressDialog->setWindowTitle("绘制中...请稍等");
+                progressDialog->show();
 
                 // 立即刷新UI以显示弹窗
                 QCoreApplication::processEvents();
@@ -943,7 +918,10 @@ void MainWindow::doubleClick(const QString &filePath) {
                     ui->show_part->insertTab(0,plotWidget,tabName);
 
                 }
-                progressDialog.close();
+                progressDialog->close();
+                progressDialog->close();
+                delete progressDialog;
+                progressDialog = nullptr; // 避免悬空指针
 
                 ui->show_part->setCurrentIndex(0);
             }else{
@@ -981,10 +959,12 @@ void MainWindow::doubleClick(const QString &filePath) {
     }
 }
 
-void MainWindow::checkLINtime(QString starttime,QString endtime){
+// 在飞行轨迹图中选择出两个点后 弹出提示框为测线命名
+void MainWindow::checkLINtime(QString starttime,QString endtime,int text1iforxposition,int text2iforxposition){
     qDebug()<< "starttime"<< starttime << "endtime"<<endtime;
     Starttime=starttime;
     Endtime=endtime;
+
     // 第一个提示窗口，询问用户是否要分割测线
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "分割测线", "是否分割测线？",
@@ -994,7 +974,7 @@ void MainWindow::checkLINtime(QString starttime,QString endtime){
 
         bool ok;
         QString lineName = QInputDialog::getText(this, "输入测线名称",
-                                                 "测线名称:", QLineEdit::Normal, "", &ok);
+                                                 "测线名称 line-:", QLineEdit::Normal, "", &ok);
         if (ok && !lineName.isEmpty()) {
 
             // QMessageBox::information(this, "测线名称", "您输入的测线名称是: " + lineName);
@@ -1022,21 +1002,23 @@ void MainWindow::checkLINtime(QString starttime,QString endtime){
             }
 
         } else {
-            // 用户取消输入
+
             QMessageBox::warning(this, "操作取消", "用户取消操作。");
         }
     } else {
-        // 用户取消操作。
+
         QMessageBox::information(this, "操作", "用户取消操作。");
     }
 
 
 }
 
+// 循环左侧树中所有的项目 找到LINlines项目，保存相关信息
+// LINlines 作为被隐藏的项目，用于存储与飞行轨迹绘制相关的信息，此信息将参与 预处理-倾子 窗口的初始化
 void MainWindow::iterateTreeItemsforLIN(QTreeWidgetItem* parentItem, const QString& itemname) {
     if (!parentItem) {
 
-        return;  // 如果 parentItem 是空，直接返回
+        return;  // parentItem 是空，直接返回
     }
 
     // 检查当前项是否匹配指定的 filetype
@@ -1061,6 +1043,7 @@ void MainWindow::iterateTreeItemsforLIN(QTreeWidgetItem* parentItem, const QStri
     }
 }
 
+// 完成导入文件后的界面树刷新
 void MainWindow::iterateTreeItems(QTreeWidgetItem* parentItem, const QString& filetype, const QString& filepath) {
     if (!parentItem) {
 
@@ -1089,7 +1072,7 @@ void MainWindow::iterateTreeItems(QTreeWidgetItem* parentItem, const QString& fi
     }
 }
 
-
+// 导入文件时进行拷贝行为 包含拷贝和界面更新 进度条更新
 void MainWindow::processFileImport(const QStringList &fileInfoList) {
     // 确保列表至少包含两个元素
     if (fileInfoList.size() < 2) {
@@ -1099,7 +1082,16 @@ void MainWindow::processFileImport(const QStringList &fileInfoList) {
 
     QString filetype = fileInfoList[0];
     QString filepath = fileInfoList[1];
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line","LINlines","Inverse"};
+    QStringList folderNameszh = {"倾子","空中TS3", "地面TS3", "空中TBL","地面TBL","航线","测线","LINlines","反演结果"};
+    int filetypeposition=0;
+    for (int a=0;a< folderNames.size();a++){
+        if( filetype == folderNames[a]){
+            filetypeposition = a;
+        }
 
+    }
+    filetype = folderNameszh[filetypeposition];
     // 找到 CustomQTreeWidget 对象
     CustomQTreeWidget* customTreeWidget = this->findChild<CustomQTreeWidget*>();
     if (!customTreeWidget) {
@@ -1178,15 +1170,15 @@ void MainWindow::processFileImport(const QStringList &fileInfoList) {
 }
 
 
-
+// 创建左侧工区树结构同时可用于刷新树结构 选择性隐藏了LINlines项目
 void MainWindow::buildTree(const QString &path, QTreeWidgetItem *parentItem) {
     QDir dir(path);
     dir.setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
 
     QFileInfoList fileInfoList = dir.entryInfoList();
-    qDebug() << fileInfoList;
-    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line","LINlines"};
-    QStringList folderNameszh = {"倾子","空中TS3", "地面TS3", "空中TBL","地面TBL","航线","测线","LINlines"};
+    // qDebug() << fileInfoList;
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line","LINlines","Inverse"};
+    QStringList folderNameszh = {"倾子","空中TS3", "地面TS3", "空中TBL","地面TBL","航线","测线","LINlines","反演结果"};
     QStringList allowedExtensions = {"txt","tipper"};
 
     for (const QFileInfo &fileInfo : fileInfoList) {
@@ -1249,12 +1241,14 @@ void MainWindow::buildTree(const QString &path, QTreeWidgetItem *parentItem) {
     }
 }
 
+// 刷新左侧树
 void MainWindow::refresh_tree(const QString &filePath){
     QDir tm(filePath);
     tm.cdUp();
     this->refresh_view(filePath,this);
 }
 
+// 创建左侧树的入口 处理树的信号
 void MainWindow::new_view(QString *fullWorkAreaPath){
 
     QList<QWidget*> childWidgets = this->findChildren<QWidget*>();
@@ -1306,7 +1300,7 @@ void MainWindow::new_view(QString *fullWorkAreaPath){
 }
 
 
-
+// 测试输出CustomQTreeWidget左侧树的所有项目
 void printCustomQTreeWidgetNames(QWidget *parentWidget) {
     // 获取父部件的所有子部件
     QList<QWidget*> childWidgets = parentWidget->findChildren<QWidget*>();
@@ -1323,6 +1317,7 @@ void printCustomQTreeWidgetNames(QWidget *parentWidget) {
     }
 }
 
+// 关闭工区，后续需要根据需求增加内存中数据的销毁
 void MainWindow::closeFile(){
 
     QList<QWidget*> childWidgets = this->findChildren<QWidget*>();
@@ -1357,10 +1352,12 @@ void MainWindow::closeFile(){
     // }
 }
 
+// 测试输出CustomQTreeWidget左侧树的所有项目
 void MainWindow::listCustomQTreeWidgets() {
     printCustomQTreeWidgetNames(this);
 }
 
+// 刷新左侧树的视图
 void MainWindow::refresh_view(const QString &path,QWidget *parentWidget){
     QString rootPath = path;
     qDebug() << "refresh_view rootPath" << rootPath;
@@ -1382,7 +1379,7 @@ void MainWindow::refresh_view(const QString &path,QWidget *parentWidget){
                 buildTree(rootPath, rootItem);
                 treeWidget->removeItemsBasedOnCondition();
                 treeWidget->expandItem(treeWidget->topLevelItem(0));
-                qDebug() << "CustomQTreeWidget objectName:" << treeWidget->objectName();
+                // qDebug() << "CustomQTreeWidget objectName:" << treeWidget->objectName();
             }
 
         }
@@ -1391,6 +1388,7 @@ void MainWindow::refresh_view(const QString &path,QWidget *parentWidget){
     }
 }
 
+// 创建新的工区
 void MainWindow::selectFile() {
 
     bool ok;
@@ -1428,7 +1426,7 @@ void MainWindow::selectFile() {
         //     }
 
 
-    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines"};
+    QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","LINlines","Inverse"};
     // 创建工区内的子文件夹
     for (const QString &folderName : folderNames) {
         QDir subDir(fullWorkAreaPath);
@@ -1436,16 +1434,16 @@ void MainWindow::selectFile() {
 
         // 检查文件夹是否存在
         if (!subDir.exists(folderPath)) {
-            QMessageBox::StandardButton reply;
-            reply = QMessageBox::question(
-                nullptr,
-                "创建文件夹",
-                QString("文件夹 '%1' 不存在。是否创建它?").arg(folderName),
-                QMessageBox::Yes | QMessageBox::No,
-                QMessageBox::No
-                );
+            // QMessageBox::StandardButton reply;
+            // reply = QMessageBox::question(
+            //     nullptr,
+            //     "创建文件夹",
+            //     QString("文件夹 '%1' 不存在。是否创建它?").arg(folderName),
+            //     QMessageBox::Yes | QMessageBox::No,
+            //     QMessageBox::No
+            //     );
 
-            if (reply == QMessageBox::Yes) {
+            // if (reply == QMessageBox::Yes) {
 
                 if (subDir.mkdir(folderName)) {
                     std::cout<<'success'<<std::endl;
@@ -1454,7 +1452,7 @@ void MainWindow::selectFile() {
                     std::cout<<'false'<<std::endl;
                     QMessageBox::critical(nullptr, "错误", QString("无法创建文件夹 '%1'。").arg(folderName));
                 }
-            }
+
         }
     }
 
@@ -1509,6 +1507,7 @@ void MainWindow::selectFile() {
 
 }
 
+// 预处理-倾子 的程序入口 注释的代码使用另一种方案实现
 void MainWindow::Tipper(QStringList &selectedtipperFiles) {
     // 通过唯一的objectname来获得当前工作的工区标识，并且设置计算需要的相关路径信息
     // QAction *action = qobject_cast<QAction *>(sender());
@@ -1674,7 +1673,7 @@ void MainWindow::Tipper(QStringList &selectedtipperFiles) {
 
 }
 
-
+// 处理倾子计算后的相关操作 包括文件拷贝 文件删除
 void MainWindow::onProcessFinished(const QString &output, const QString &error,const QString &Path)
 {
     qDebug() << "Output:" << output;
@@ -1779,3 +1778,437 @@ void MainWindow::onProcessFinished(const QString &output, const QString &error,c
     // 显示提示框并等待用户点击“确定”
     msgBox.exec();
 }
+
+
+//找到倾子数据所在的line*文件夹
+void MainWindow::iterateTreeItemsfindtipper(QTreeWidgetItem* parentItem, QStringList &tipperfolders) {
+    if (!parentItem) {
+
+        return;  // parentItem 是空，直接返回
+    }
+
+    // 检查当前项是否匹配指定的 filetype
+    if (parentItem->text(0)== "倾子") {
+        QString tipperfilepath = parentItem->data(0, Qt::UserRole).toString();
+
+        QDir dir(tipperfilepath);
+        QStringList filter;
+        filter << "line*";
+
+
+        // 获取所有 tipper 文件夹
+        QStringList tipperFiles = dir.entryList(filter, QDir::Dirs );
+        if (tipperFiles.size() == 0) return;
+        for (const QString& fileName : tipperFiles) {
+            tipperfolders << dir.absoluteFilePath(fileName);
+            QString filePath = dir.absoluteFilePath(fileName);
+            // readTipperFile(filePath);
+        }
+
+        // 读取 coord_distance.txt 文件
+        // QString coordFilePath = dir.absoluteFilePath("coord_distance.txt");
+        // if (QFile::exists(coordFilePath)) {
+        //     readCoordDistanceFile(coordFilePath);
+        // }
+
+        return;
+    }
+
+    // 递归检查当前项的所有子项
+    for (int i = 0; i < parentItem->childCount(); ++i) {
+        QTreeWidgetItem* childItem = parentItem->child(i);
+        iterateTreeItemsfindtipper(childItem,tipperfolders);  // 递归调用
+    }
+}
+
+double calculateDistance(double x1, double y1, double z1, double x2, double y2, double z2) {
+    return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2) + std::pow(z2 - z1, 2));
+}
+// 必较数字数量级
+bool areSameMagnitude(double a, double b, double tolerance = 1.0) {
+    // 计算 a 和 b 的对数值
+    double logA = std::log10(std::fabs(a)); // 对数值
+    double logB = std::log10(std::fabs(b));
+    qDebug() << logA << logB;
+    // 计算两个对数值的差异
+    return std::fabs(int(logA) - int(logB)) < tolerance; // 判断是否在容忍范围内
+}
+
+void MainWindow::readfile_Inv(QStringList linesDIR){
+
+
+    QDir linedir(linesDIR[0]);
+    QString linename = linedir.dirName() + "inv";
+    qDebug()<<"linename"<<linename;
+    tipperDataList.clear();
+    coordData.xdistance.clear();
+    coordData.ydistance.clear();
+    coordData.distance.clear();
+    coordData.time.clear();
+
+    QList<QList<double>> frequencies;
+    QList<QList<double>> tipperReal;
+    QList<QList<double>> tipperImag;
+    QList<double> distance_two_points;
+    for (QString &lineDIR : linesDIR){
+
+        this->processDirectory(lineDIR);
+        QVector<TipperData> tipperDataList = this->getTipperData();
+        if (tipperDataList.isEmpty()) return;
+
+        for (const TipperData& data : tipperDataList) {
+            frequencies.append( data.frequencies.toList());
+            tipperReal.append( data.tipperReal.toList());
+            tipperImag.append(data.tipperImag.toList());
+        }
+
+        CoordData coordData = this->getCoordData();
+        QList<double> coordDatasx;
+        QList<double> coordDatasy;
+        QList<double> coordDatasz;
+        coordDatasx = coordData.xdistance;
+        coordDatasy = coordData.ydistance;
+        coordDatasz = coordData.distance;
+        for (int  i=0;i< (coordDatasx.size()-1);i++){
+            double x1 = coordDatasx[i];
+            double x2 = coordDatasx[i+1];
+
+            double y1 = coordDatasy[i];
+            double y2 = coordDatasy[i+1];
+
+            double z1 = coordDatasz[i];
+            double z2 = coordDatasz[i+1];
+            double distance = calculateDistance(x1, y1, z1, x2, y2, z2);
+            distance_two_points.append(distance);
+        }
+
+
+    }
+
+
+    QDir invdir(currentPath);
+    QString folderPath = invdir.filePath("Inverse");
+
+    // 检查文件夹是否存在
+    if (!invdir.exists(folderPath)) {
+
+        if (invdir.mkdir("Inverse")) {
+
+            // QMessageBox::information(nullptr, "成功", QString("文件夹 '%1' 已成功创建。").arg(folderName));
+            invdir.cd("Inverse");
+
+            QString linenamePath = invdir.filePath(linename);
+            if (!invdir.exists(linenamePath)){
+                if (invdir.mkdir(linename)){
+                    qDebug()<<"success";
+                }else{
+                    QMessageBox::critical(nullptr, "错误", QString("无法创建文件夹 '%1'。").arg(linename));
+                }
+            }
+
+        } else {
+
+            QMessageBox::critical(nullptr, "错误", QString("无法创建文件夹 '%1'。").arg("Inverse"));
+        }
+
+    }else{
+        invdir.cd("Inverse");
+        QString linenamePath = invdir.filePath(linename);
+
+        if (!invdir.exists(linenamePath)){
+            if (invdir.mkdir(linename)){
+                qDebug()<<"success";
+            }else{
+                QMessageBox::critical(nullptr, "错误", QString("无法创建文件夹 '%1'。").arg(linename));
+            }
+        }
+    }
+
+    int nxblocks =100, nyblocks= 62, nsameblocks = 30, nysameblocks = 10;
+    if (nsameblocks > nxblocks*0.5) nsameblocks = int(nxblocks*0.3);
+    if (int(nxblocks*0.5)!= nxblocks*0.5) nxblocks = nxblocks-1;
+    if (int(nyblocks*0.5)!= nyblocks*0.5) nyblocks = nyblocks-1;
+    // 数组初始化为均匀剖分部分
+    QList<double> xblocks(nsameblocks, int(distance_two_points[0]*(0.5)));
+    QList<double> yblocks(nysameblocks, int(200));
+    // for (double num : xblocks) {
+    //     qDebug() << num ;
+    // }
+    bool breakbool =false;
+    for (int i=0;i < int(nxblocks*0.5) - nsameblocks;i++){
+        if (breakbool) break;
+        xblocks.append(int(xblocks[xblocks.size()-1]+distance_two_points[0]/(int(nxblocks*0.5) - nsameblocks-i) + xblocks[xblocks.size()-2]) );
+
+        if (areSameMagnitude(xblocks[xblocks.size()-1], xblocks[xblocks.size()-2])) {
+            continue;
+        } else {
+            for (int j=0; j< int(nxblocks*0.5) - nsameblocks - i ; j++){
+
+                int magnitude =std::log10(std::fabs(xblocks[xblocks.size()-1]));
+                qDebug() << xblocks[xblocks.size()-1]<< magnitude ;
+                double result = std::pow(10, magnitude);
+                xblocks.append(int(xblocks[xblocks.size()-1]+ result));
+                if (j == (int(nxblocks*0.5) - nsameblocks - i - 1)) breakbool = true;
+            }
+
+        }
+    }
+
+
+    bool ybreakbool =false;
+    for (int i=0;i < int(nyblocks*0.5) - nysameblocks;i++){
+        if (ybreakbool) break;
+        yblocks.append(int(yblocks[yblocks.size()-2]+yblocks[0]/(int(nyblocks*0.5) - nysameblocks-i) + yblocks[yblocks.size()-2]*0.5) );
+        qDebug() << yblocks[yblocks.size()-2];
+        double temp = yblocks[yblocks.size()-2];
+        if (areSameMagnitude(yblocks[yblocks.size()-1], yblocks[yblocks.size()-2])) {
+            continue;
+        } else {
+            for (int j=0; j< int(nyblocks*0.5)- nysameblocks - i ; j++){
+
+                int magnitude =std::log10(std::fabs(temp));
+                qDebug() << temp<< magnitude ;
+
+                double result = std::pow(10, magnitude);
+                temp += result;
+                yblocks.append(temp);
+                if (j == (int(nyblocks*0.5) - nysameblocks - i - 1)) ybreakbool = true;
+            }
+
+        }
+    }
+
+
+    qDebug() << yblocks.size();
+    // for (double num : yblocks) {
+
+    //    qDebug() << num;
+    // }
+    QList<double> xoldblocks = xblocks;
+
+    std::sort(xblocks.begin(), xblocks.end(),std::greater<double>());
+    QList<double> xnewBlocks = xblocks;
+    for (double num : xoldblocks) {
+
+        xnewBlocks.append(num);
+    }
+
+
+    QList<double> yoldblocks = yblocks;
+
+    // std::sort(yblocks.begin(), yblocks.end(),std::greater<double>());
+    QList<double> ynewBlocks = yblocks;
+    // for (double num : yoldblocks) {
+
+    //     ynewBlocks.append(num);
+    // }
+
+    if (int(nxblocks*0.5)!= nxblocks*0.5){
+        int middleIndex = int(xnewBlocks.size() / 2);
+        xnewBlocks.insert(middleIndex, distance_two_points[0]);
+    }
+
+    if (int(nyblocks*0.5)!= nyblocks*0.5){
+        int middleIndex = int(ynewBlocks.size() / 2);
+        ynewBlocks.insert(middleIndex, ynewBlocks[ynewBlocks.size() / 2]);
+    }
+
+
+    nyblocks = int(nyblocks*0.5);
+    QFile modelfile(currentPath + "/Inverse/"+linename+"/model.rho");
+
+    if (modelfile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&modelfile);
+        out << QString::number(nxblocks)+ "\t"+ QString::number(nyblocks) + "\t"+ "LOGE" +"\n";
+        for (int i = 0; i < int(nxblocks*0.1) ;i++){
+            for (int j = 0; j < 10 ;j++){
+                out <<"\t" + QString::number(xnewBlocks[i*10 +j]) +  "\t";
+                if (j ==9) out <<"\n";
+            }
+        }
+        if (int(nxblocks*0.1) != nxblocks*0.1){
+            for (int a = int(nxblocks*0.1)*10; a< nxblocks;a++){
+                out <<"\t" + QString::number(xnewBlocks[a]) +  "\t";
+                if (a == nxblocks-1)  out <<"\n";
+            }
+        }
+
+
+        for (int i = 0; i < int(nyblocks*0.1) ;i++){
+            for (int j = 0; j < 10 ;j++){
+                out << "\t" +QString::number(ynewBlocks[i*10 +j]) +  "\t";
+                if (j ==9) out <<"\n";
+            }
+        }
+        if (int(nyblocks*0.1) != nyblocks*0.1){
+            for (int a = int(nyblocks*0.1)*10; a< nyblocks;a++){
+                out <<"\t" + QString::number(ynewBlocks[a]) +  "\t";
+                if (a == nyblocks-1)  out <<"\n";
+            }
+        }
+
+        out << QString::number(1)<<"\n";
+        for (int a= 0;a< nyblocks;a++){
+            for (int i = 0; i < int(nxblocks*0.05) ;i++){
+                for (int j = 0; j < 20 ;j++){
+                    out <<"\t" + QString::number(1)+  "\t";
+                    if (j ==19) out <<"\n";
+                }
+            }
+            if (int(nxblocks*0.05) != nxblocks*0.05){
+                for (int a = int(nxblocks*0.2)*20; a< nxblocks;a++){
+                    out <<"\t" + QString::number(1) +  "\t";
+                    if (a == nxblocks-1)  out <<"\n";
+                }
+            }
+        }
+
+        out << QString::number(100)+  "\t" + QString::number(1e6,'e',6).replace('e','E') <<"\n";
+
+        for (int a= 0;a< nyblocks;a++){
+            if (a < int (nyblocks*0.5)){
+                out << QString::number(1)+  "\t" ;
+            }else{
+                out << QString::number(0)+  "\t" ;
+                if (a == (nyblocks-1)){
+                    out << "\n" ;
+                }
+            }
+
+        }
+    }
+
+
+
+    QFile datfile(currentPath + "/Inverse/"+linename+"/data.dat");
+    // qDebug() << "datfile" << currentPath + "/Inverse/"+linename+"/data.dat";
+    int xspace =int((lineend.toInt()- linestart.toInt())/frequencies.size());
+    qDebug() << lineend << "  "<< linestart<< " "<<  xspace;
+    if (datfile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&datfile);
+        out << "# Synthetic 2D MT data written in Matlab\n";
+        out << "# Period(s) Code GG_Lat GG_Lon X(m) Y(m) Z(m) Component Real Imag Error\n";
+        out << "> Full_Vertical_Components\n";
+        out << "> exp(-i\\omega t)\n";
+        out << "> [V/m]/[T]\n";
+        out << "> 0.00\n";
+        out << "> 0.000 0.000\n";
+        out << "> "+QString::number(frequencies[0].size()) +" "+ QString::number(frequencies.size())+"\n";
+        // 写入内容
+        double sum = 0.0;
+        for (int i = 0;i < frequencies.size(); i++){
+            QString iformattedString = QString("%1").arg(i+1, 3, 10, QChar('0'));
+
+
+            // 累加从第0个元素到第i-1个元素
+            if (i != 0) sum += distance_two_points[i-1];
+
+            for (int j = 0 ;j< frequencies[0].size();j++){
+
+                out << QString::number(frequencies[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ iformattedString+ "\t"+ "0.000"+ "\t"+ "0.000"+ "\t"+"0.000"+ "\t"+ QString::number(i == 0 ? (0) : (sum))+ "\t"+ "0.000" + "\t"+ "TX" + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperImag[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\n";
+            }
+        }
+
+        out << "# Synthetic 2D MT data written in Matlab\n";
+        out << "# Period(s) Code GG_Lat GG_Lon X(m) Y(m) Z(m) Component Real Imag Error\n";
+        out << "> Full_Vertical_Components\n";
+        out << "> exp(-i\\omega t)\n";
+        out << "> [V/m]/[T]\n";
+        out << "> 0.00\n";
+        out << "> 0.000 0.000\n";
+        out << "> "+QString::number(frequencies[0].size()) +" "+ QString::number(frequencies.size())+"\n";
+        for (int i = 0;i < frequencies.size(); i++){
+            QString iformattedString = QString("%1").arg(i+1, 3, 10, QChar('0'));
+            for (int j = 0 ;j< frequencies[0].size();j++){
+
+                out << QString::number(frequencies[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ iformattedString+ "\t"+ "0.000"+ "\t"+ "0.000"+ "\t"+"0.000"+ "\t"+ QString::number(i == 0 ? (0) : (sum))+ "\t"+ "0.000" + "\t"+ "TY" + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperImag[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\n";
+            }
+        }
+        // 关闭文件
+        datfile.close();
+        qDebug() << "data File written successfully at "+ currentPath + "/Inverse/"+linename+"/data.dat";
+    } else {
+        // 文件打开失败时输出错误信息
+        qWarning() << "Could not open file for writing:" << datfile.errorString();
+    }
+
+    inverseprocessparameters.clear();
+    inverseprocessparameters << "-I" << "NLCG" <<currentPath + "/Inverse/"+linename+"/data.rho"  << currentPath + "/Inverse/"+linename+"/data.dat" << "0.001" << "0.000001";
+    inverseprocesslineworking = currentPath + "/Inverse/"+linename;
+    progressLineDialog =new QProgressDialog("计算中...", "取消", 0, 0, this);
+    progressLineDialog->setWindowModality(Qt::WindowModal);
+    progressLineDialog->setAutoClose(true);  // 完成后自动关闭
+    progressLineDialog->setAutoReset(true);
+    progressLineDialog->setCancelButton(nullptr);  // 不显示取消按钮
+    progressLineDialog->setWindowTitle("反演计算中...请稍等");
+    progressLineDialog->show();
+    if (datfile.exists()){
+
+        // Create and start the process thread
+        Inverseprocess *inverseprocess = new Inverseprocess(this);
+        connect(inverseprocess, &Inverseprocess::finished, this, &MainWindow::onInverseprocessFinished);
+        inverseprocess->start();
+    }else{
+        progressLineDialog->close();
+        delete progressLineDialog;
+        progressLineDialog = nullptr; // 避免悬空指针
+    }
+
+}
+
+
+
+// 处理反演计算后的相关操作 包括文件拷贝 文件删除
+void MainWindow::onInverseprocessFinished(const QString &output, const QString &error,const QString &Path)
+{
+    progressLineDialog->close();
+    delete progressLineDialog;
+    progressLineDialog = nullptr; // 避免悬空指针
+    qDebug() << "Output:" << output;
+    qDebug() << "Error Output:" << error;
+    qDebug() << "Process finished.";
+
+    this->refresh_view(currentPath,this);
+
+    // 弹出一个提示框
+
+    QMessageBox msgBox;
+    msgBox.setWindowTitle("提示");
+    msgBox.setText("反演计算完毕");
+    msgBox.setIcon(QMessageBox::Information);  // 设置图标类型为信息图标
+    msgBox.setStandardButtons(QMessageBox::Ok);  // 设置“确定”按钮
+    msgBox.setDefaultButton(QMessageBox::Ok);    // 默认聚焦“确定”按钮
+
+    // 显示提示框并等待用户点击“确定”
+    msgBox.exec();
+}
+
+
+void MainWindow::handleinverse(){
+    QStringList tipperfolders;
+    CustomQTreeWidget* customTreeWidget = this->findChild<CustomQTreeWidget*>();
+    if (!customTreeWidget) {
+        qDebug() << "CustomQTreeWidget not found.";
+        return;
+    }
+
+    // 遍历 CustomQTreeWidget 中的所有顶层项
+    for (int i = 0; i < customTreeWidget->topLevelItemCount(); ++i) {
+        QTreeWidgetItem* item = customTreeWidget->topLevelItem(i);
+        this->iterateTreeItemsfindtipper(item,tipperfolders);
+
+        break;
+    }
+    qDebug()<< tipperfolders;
+
+    Inversewindows invdialog(this);
+
+    connect(&invdialog, &Inversewindows::returnlineDIR,this, &MainWindow::readfile_Inv);
+    if (invdialog.exec() == QDialog::Accepted) {
+
+        qDebug() <<"Inverse close" ;
+        // this->Tipper(selectedtipperFiles);
+    }
+
+}
+

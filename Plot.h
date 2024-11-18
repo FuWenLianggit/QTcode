@@ -24,7 +24,7 @@ public:
     QwtText trackerTextF(const QPointF& pos) const override;
 
 signals:
-    void startandendtime(QString starttime, QString endtime);
+    void startandendtime(QString starttime, QString endtime,int text1position,int text2position );
 
 protected:
     void widgetMousePressEvent(QMouseEvent* e) override;
@@ -52,10 +52,10 @@ public:
     void setSamples(QwtPlotCurve* curve, const QVector<QPointF>& samples);
     void setSamplesLIN(QwtPlotCurve* curve, const QVector<QPointF>& samples, QStringList &timelist);
     void setSamplesTipper(QwtPlotCurve* curve);
-    void setSamplesLINtime(QString starttime, QString endtime);
+    void setSamplesLINtime(QString starttime, QString endtime,int text1position,int text2position);
 
 signals:
-    void LINtime(QString starttime, QString endtime);
+    void LINtime(QString starttime, QString endtime,int text1position,int text2position);
 
 private:
     QwtPlotCurve* m_curve;

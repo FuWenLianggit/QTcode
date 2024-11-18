@@ -3,6 +3,8 @@
 #include <QDebug>
 #include <QTreeWidget>
 #include "MainWindow.h"
+
+// 打开新的独立窗口来处理倾子计算的数据选择  该方案已弃用
 FileDialog::FileDialog(QWidget *parent) : QDialog(parent), mainWindow(static_cast<MainWindow*>(parent)) {
     this->setWindowTitle("Select a File or a data Dir for ProcrssLine");
     this->new_view();

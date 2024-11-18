@@ -7,6 +7,8 @@
 #include <QDebug>
 #include <stdexcept>
 
+// 绘制原始数据文件时为减少读取时间 支持读取部分数据 这里先获得时间数据 根据时间数据读取需要的数据
+
 TimeSeries::TimeSeries(const QString& TsNamein, QObject *parent)
     : QObject(parent), TsName(TsNamein){
     // readfile();

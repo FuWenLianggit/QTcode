@@ -1,7 +1,7 @@
 #include "progressdialog.h"
 #include <QApplication>
 #include <QStyle>
-
+// 拷贝文件时进度条相关设置
 ProgressDialog::ProgressDialog(QWidget *parent)
     : QProgressDialog("Copying files...", "Cancel", 0, 100, parent) {
     setCustomStyle();

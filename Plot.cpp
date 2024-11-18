@@ -27,6 +27,7 @@
     m_lastClickedPoint = QPointF(); // 初始化最后点击点
 }
 
+// 鼠标悬停时显示点的信息
 QwtText  HoverPicker::trackerTextF(const QPointF& pos) const
 {
     if (!m_curve || m_curve->dataSize() == 0)
@@ -91,6 +92,7 @@ QwtText  HoverPicker::trackerTextF(const QPointF& pos) const
     }
 }
 
+// 鼠标左键点击同时按压ctrl按钮 选择飞行轨迹点
 void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
 {
     if(timeslistsize == 1){return;}
@@ -227,21 +229,26 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
             if (first_node != QPointF(3.14, 3.14) && first_node == second_node) {
                 second_node = QPointF(3.14, 3.14);
             }
+
             if (first_node != QPointF(3.14, 3.14) && second_node != QPointF(3.14, 3.14)){
                 QString text1;
+                int text1position;
                 QString text2;
+                int text2position;
                 QwtText qwtText;
                 for (int i = 0; i < m_curve->dataSize(); ++i) {
                     QPointF sample = m_curve->sample(i);
                     if (sample.x() == first_node.x() && sample.y() == first_node.y()){
                         text1 = timeslists[i];
 
+                        text1position =  i;
                         qwtText.setText(text1);
                         qwtText.setBackgroundBrush(QBrush(Qt::white));
                     }
                     if (sample.x() == second_node.x() && sample.y() == second_node.y()){
                         text2 = timeslists[i];
 
+                        text2position = i;
                         qwtText.setText(text2);
                         qwtText.setBackgroundBrush(QBrush(Qt::white));
                     }
@@ -255,9 +262,14 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                 int seconds2 = QTime(0, 0, 0).secsTo(time2);  // 将 time2 转换为秒
                 if ((seconds1-seconds2)>0){
                     QString temp;
+                    int tempposition = 0;
                     temp=text1;
                     text1=text2;
                     text2=temp;
+
+                    tempposition = text1position;
+                    text1position = text2position;
+                    text2position = tempposition;
                 }
                 QString infoText = QString("Time Start: %1\nTime End: %2")
                 .arg(text1)
@@ -265,7 +277,7 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
                 m_infoLabel->setText(infoText);
                 m_infoLabel->adjustSize();
                 m_infoLabel->show();
-                emit startandendtime(text1,text2);
+                emit startandendtime(text1,text2,text1position,text2position);
             }
 
             if (first_node != QPointF(3.14, 3.14) && second_node == QPointF(3.14, 3.14)){
@@ -391,6 +403,7 @@ void Plot::setSymbol( QwtSymbol* symbol )
     }
 }
 
+// 设置基本的图像形式 鼠标悬停显示文本 无选点功能
 void Plot::setSamples( QwtPlotCurve* curve,const QVector< QPointF >& samples )
 {   qDebug() <<"QwtText" << curve->dataSize();
     curve->setPaintAttribute(
@@ -416,6 +429,7 @@ void Plot::setSamples( QwtPlotCurve* curve,const QVector< QPointF >& samples )
 
 }
 
+// 设置飞行轨迹相关绘图参数 可悬停 可选点
 void Plot::setSamplesLIN( QwtPlotCurve* curve,const QVector< QPointF >& samples,QStringList & timelist )
 {   qDebug() <<"QwtText" << curve->dataSize();
     curve->setPaintAttribute(
@@ -442,10 +456,13 @@ void Plot::setSamplesLIN( QwtPlotCurve* curve,const QVector< QPointF >& samples,
 
 }
 
-void Plot::setSamplesLINtime(QString starttime,QString endtime){
-    emit LINtime(starttime,endtime);
+// 当开始时间点和结束时间点被选择时 向主界面发送信号
+void Plot::setSamplesLINtime(QString starttime,QString endtime, int text1iforxposition,int text2iforposition){
+    emit LINtime(starttime,endtime,text1iforxposition,text2iforposition);
 }
 
+
+// 绘制倾子图像时一些基本参数设置
 void Plot::setSamplesTipper( QwtPlotCurve* curve)
 {   qDebug() <<"QwtText" << curve->dataSize();
 

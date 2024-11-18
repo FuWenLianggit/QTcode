@@ -1,5 +1,6 @@
 #include "ImportDialog.h"
 
+// 创建新的文件导入窗口 可选择文件类型 打开磁盘空间 返回路径到主界面
 ImportDialog::ImportDialog(QWidget *parent) : QDialog(parent), selectedFilePath("") {
     this->setWindowTitle("导入文件");
     this->setFixedSize(400, 300);  // 设置固定大小

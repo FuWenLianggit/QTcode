@@ -50,7 +50,7 @@
               <item>
                <widget class="QTextEdit" name="textEdit">
                 <property name="lineWrapMode">
-                 <enum>QTextEdit::WidgetWidth</enum>
+                 <enum>QTextEdit::LineWrapMode::WidgetWidth</enum>
                 </property>
                </widget>
               </item>
@@ -91,14 +91,15 @@
     <addaction name="tipper"/>
     <addaction name="quzao"/>
    </widget>
-   <widget class="QMenu" name="menu_2">
+   <widget class="QMenu" name="inverse">
     <property name="title">
      <string>反演</string>
     </property>
+    <addaction name="inverse_get_data"/>
    </widget>
    <addaction name="wenjian"/>
    <addaction name="menu"/>
-   <addaction name="menu_2"/>
+   <addaction name="inverse"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="new_project">
@@ -134,6 +135,11 @@
   <action name="close_project_3">
    <property name="text">
     <string>关闭工区</string>
+   </property>
+  </action>
+  <action name="inverse_get_data">
+   <property name="text">
+    <string>设置反演参数</string>
    </property>
   </action>
  </widget>

@@ -1,7 +1,7 @@
 #include "customtabbar.h"
 #include <QMouseEvent>
 #include <QTabWidget>
-#include <iostream> // 用于 std::cout
+#include <iostream>
 CustomTabBar::CustomTabBar(QWidget *parent) : QTabBar(parent) {}
 
 void CustomTabBar::paintEvent(QPaintEvent *event) {
@@ -19,7 +19,7 @@ void CustomTabBar::paintEvent(QPaintEvent *event) {
 QRect CustomTabBar::getCloseButtonRect(const QRect &tabRect) {
     int buttonWidth = 16;
     int buttonHeight = 16;
-    int buttonX = tabRect.right() - buttonWidth - 5;  // 从右侧边缘向左偏移5像素
+    int buttonX = tabRect.right() - buttonWidth -0;  // 从右侧边缘向左偏移5像素
     int buttonY = tabRect.top() + (tabRect.height() - buttonHeight) / 2;  // 垂直居中
     return QRect(buttonX, buttonY, buttonWidth, buttonHeight);
 }

@@ -18,6 +18,8 @@ SOURCES += \
     Filechangemanager.cpp \
     Filedialog.cpp \
     ImportDialog.cpp \
+    Inverseprocess.cpp \
+    Inversewindows.cpp \
     Plot.cpp \
     ProcessLine.cpp \
     TimeRangeDialog.cpp \
@@ -37,6 +39,8 @@ HEADERS += \
     Filechangemanager.h \
     Filedialog.h \
     ImportDialog.h \
+    Inverseprocess.h \
+    Inversewindows.h \
     Plot.h \
     ProcessLine.h \
     TimeRangeDialog.h \

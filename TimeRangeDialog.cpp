@@ -2,7 +2,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QStyle>
-
+// 绘制原始数据前打开时间选择界面 返回时间到主界面
 TimeRangeDialog::TimeRangeDialog(QDateTime start, QDateTime end, QWidget *parent)
     : QDialog(parent), startTime(start), endTime(end) {
 
