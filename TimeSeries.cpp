@@ -56,7 +56,7 @@ void TimeSeries::readfilepart(const QDateTime& actualStart, const QDateTime& act
     sampleFreq = freqString.toInt();
 
     int numDataPoints = (lines.size() / (sampleFreq + 5)) * sampleFreq;
-    data.resize(numDataPoints, QVector<double>(5, 0.0));
+    data.resize(numDataPoints);
     qDebug()<< data.size();
     int idx = 0;
     int segIdx = 0;
@@ -87,6 +87,7 @@ void TimeSeries::readfilepart(const QDateTime& actualStart, const QDateTime& act
 
         for (int i = 0; i < sampleFreq; ++i) {
             QStringList values = lines[startIdx + i].split(' ');
+                                                           // , Qt::SkipEmptyParts);
             QVector<double> row;
             for (const QString& val : values) {
                 row.append(val.toDouble());
@@ -103,21 +104,20 @@ void TimeSeries::readfilepart(const QDateTime& actualStart, const QDateTime& act
     int id=0;
     qDebug() << timeAxis.size() << data.size();
 
-    while(startIdt < endIdt){
+    while(id < data.size()-sampleFreq){
         timeAxis.resize(data.size());
 
         timeAxis[id] = timetmp[startIdt];
         startIdt++;
+        id+=1;
     }
     qDebug() <<  timeAxis.size() << data.size();
 
-    // for (int i; i<data.size();i++){
-    //     qDebug() << i << data[i];
-    //     if(data[i][4]<2000){
-    //         qDebug() << i << data[i];
-    //     }
+    for (int i; i<10;i++){
+        qDebug() << i << timeAxis[i];
 
-    // }
+
+    }
 
     qDebug() << "data" << data[0];
     file.close();
@@ -183,18 +183,31 @@ QVector<QDateTime> TimeSeries::getTimeData() const {
     return timeAxis;
 }
 
+// QVector<QDateTime> TimeSeries::TimeData() const {
+//     int numSamples = data.size();
+//     QVector<QDateTime> timeAxis(numSamples);
+//     for (int i = 0; i < numSamples; ++i) {
+//         timeAxis[i] = startTime.addSecs(i / sampleFreq);
+//     }
+//     return timeAxis;
+// }
+
 QVector<QDateTime> TimeSeries::TimeData() const {
     int numSamples = data.size();
     QVector<QDateTime> timeAxis(numSamples);
     for (int i = 0; i < numSamples; ++i) {
-        timeAxis[i] = startTime.addSecs(i / sampleFreq);
+        double fractionalSeconds = i / double(sampleFreq);
+        qint64 wholeSeconds = static_cast<qint64>(fractionalSeconds); // 整数秒
+        int milliseconds = static_cast<int>((fractionalSeconds - wholeSeconds) * 1000); // 剩余的毫秒部分
+        QDateTime adjustedTime = startTime.addSecs(wholeSeconds).addMSecs(milliseconds);
+        timeAxis[i] = adjustedTime;
     }
     return timeAxis;
 }
 
 
+
 QVector<QVector<double>> TimeSeries::getData() const {
     return data;
 }
-
 

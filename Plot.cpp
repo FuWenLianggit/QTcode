@@ -71,7 +71,7 @@ QwtText  HoverPicker::trackerTextF(const QPointF& pos) const
 
                 if (timeslistsize == 1 ){
                     QDateTime dateTime = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(closestPoint.x()));
-                    QString formattedDate = dateTime.toString("HH:mm:ss"); // Format as needed
+                    QString formattedDate = dateTime.toString("HH:mm:ss.zzz"); // Format as needed
                     text = QString("X: %1\nY: %2")
                     .arg(formattedDate)
                         .arg(closestPoint.y());
@@ -136,7 +136,7 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
 
 
             QPointF mouse_pos =invTransform(canvas()->mapFromGlobal(e->globalPos()));
-            double minDist = 20;
+            double minDist = 30;
             QPointF closestPoint;
 
             if (first_node != QPointF(3.14, 3.14) && second_node != QPointF(3.14, 3.14)) {

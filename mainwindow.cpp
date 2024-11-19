@@ -894,6 +894,7 @@ void MainWindow::doubleClick(const QString &filePath) {
                 //                                   QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
                 // curve->setSymbol( symbol );
                 for (int i = 0; i < ts3time.size(); i++) {
+
                     double timeInSeconds = ts3time[i].toSecsSinceEpoch(); // 将 QDateTime 转换为秒数
                     // qDebug()<<  ts3hz[i][4];
                     points << QPointF(timeInSeconds, ts3hz[i][4]);        // 确保 QPointF 的两个参数都是 double
@@ -1179,7 +1180,7 @@ void MainWindow::buildTree(const QString &path, QTreeWidgetItem *parentItem) {
     // qDebug() << fileInfoList;
     QStringList folderNames = {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN","line","LINlines","Inverse"};
     QStringList folderNameszh = {"倾子","空中TS3", "地面TS3", "空中TBL","地面TBL","航线","测线","LINlines","反演结果"};
-    QStringList allowedExtensions = {"txt","tipper"};
+    QStringList allowedExtensions = {"txt","tipper","dat","rho","prm"};
 
     for (const QFileInfo &fileInfo : fileInfoList) {
         QString fileExtension = fileInfo.suffix();
@@ -2076,6 +2077,7 @@ void MainWindow::readfile_Inv(QStringList linesDIR){
             }
 
         }
+        modelfile.close();
     }
 
 
@@ -2088,7 +2090,7 @@ void MainWindow::readfile_Inv(QStringList linesDIR){
         QTextStream out(&datfile);
         out << "# Synthetic 2D MT data written in Matlab\n";
         out << "# Period(s) Code GG_Lat GG_Lon X(m) Y(m) Z(m) Component Real Imag Error\n";
-        out << "> Full_Vertical_Components\n";
+        out << "> Tzy_Impedance\n";
         out << "> exp(-i\\omega t)\n";
         out << "> [V/m]/[T]\n";
         out << "> 0.00\n";
@@ -2105,25 +2107,25 @@ void MainWindow::readfile_Inv(QStringList linesDIR){
 
             for (int j = 0 ;j< frequencies[0].size();j++){
 
-                out << QString::number(frequencies[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ iformattedString+ "\t"+ "0.000"+ "\t"+ "0.000"+ "\t"+"0.000"+ "\t"+ QString::number(i == 0 ? (0) : (sum))+ "\t"+ "0.000" + "\t"+ "TX" + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperImag[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\n";
+                out << QString::number(frequencies[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ iformattedString+ "\t"+ "0.000"+ "\t"+ "0.000"+ "\t"+"0.000"+ "\t"+ QString::number(i == 0 ? (0) : (sum))+ "\t"+ "0.000" + "\t"+ "Ty" + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperImag[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\n";
             }
         }
 
-        out << "# Synthetic 2D MT data written in Matlab\n";
-        out << "# Period(s) Code GG_Lat GG_Lon X(m) Y(m) Z(m) Component Real Imag Error\n";
-        out << "> Full_Vertical_Components\n";
-        out << "> exp(-i\\omega t)\n";
-        out << "> [V/m]/[T]\n";
-        out << "> 0.00\n";
-        out << "> 0.000 0.000\n";
-        out << "> "+QString::number(frequencies[0].size()) +" "+ QString::number(frequencies.size())+"\n";
-        for (int i = 0;i < frequencies.size(); i++){
-            QString iformattedString = QString("%1").arg(i+1, 3, 10, QChar('0'));
-            for (int j = 0 ;j< frequencies[0].size();j++){
+        // out << "# Synthetic 2D MT data written in Matlab\n";
+        // out << "# Period(s) Code GG_Lat GG_Lon X(m) Y(m) Z(m) Component Real Imag Error\n";
+        // out << "> Full_Vertical_Components\n";
+        // out << "> exp(-i\\omega t)\n";
+        // out << "> [V/m]/[T]\n";
+        // out << "> 0.00\n";
+        // out << "> 0.000 0.000\n";
+        // out << "> "+QString::number(frequencies[0].size()) +" "+ QString::number(frequencies.size())+"\n";
+        // for (int i = 0;i < frequencies.size(); i++){
+        //     QString iformattedString = QString("%1").arg(i+1, 3, 10, QChar('0'));
+        //     for (int j = 0 ;j< frequencies[0].size();j++){
 
-                out << QString::number(frequencies[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ iformattedString+ "\t"+ "0.000"+ "\t"+ "0.000"+ "\t"+"0.000"+ "\t"+ QString::number(i == 0 ? (0) : (sum))+ "\t"+ "0.000" + "\t"+ "TY" + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperImag[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\n";
-            }
-        }
+        //         out << QString::number(frequencies[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ iformattedString+ "\t"+ "0.000"+ "\t"+ "0.000"+ "\t"+"0.000"+ "\t"+ QString::number(i == 0 ? (0) : (sum))+ "\t"+ "0.000" + "\t"+ "TY" + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperImag[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\t"+ QString::number(tipperReal[i][frequencies[0].size()-j-1],'e', 6).replace('e', 'E') + "\n";
+        //     }
+        // }
         // 关闭文件
         datfile.close();
         qDebug() << "data File written successfully at "+ currentPath + "/Inverse/"+linename+"/data.dat";
@@ -2133,7 +2135,7 @@ void MainWindow::readfile_Inv(QStringList linesDIR){
     }
 
     inverseprocessparameters.clear();
-    inverseprocessparameters << "-I" << "NLCG" <<currentPath + "/Inverse/"+linename+"/data.rho"  << currentPath + "/Inverse/"+linename+"/data.dat" << "0.001" << "0.000001";
+    inverseprocessparameters << "-I" << "NLCG" <<currentPath + "/Inverse/"+linename+"/model.rho"  << currentPath + "/Inverse/"+linename+"/data.dat" << "0.001" << "0.000001";
     inverseprocesslineworking = currentPath + "/Inverse/"+linename;
     progressLineDialog =new QProgressDialog("计算中...", "取消", 0, 0, this);
     progressLineDialog->setWindowModality(Qt::WindowModal);
@@ -2142,7 +2144,7 @@ void MainWindow::readfile_Inv(QStringList linesDIR){
     progressLineDialog->setCancelButton(nullptr);  // 不显示取消按钮
     progressLineDialog->setWindowTitle("反演计算中...请稍等");
     progressLineDialog->show();
-    if (datfile.exists()){
+    if (datfile.exists() && modelfile.exists()){
 
         // Create and start the process thread
         Inverseprocess *inverseprocess = new Inverseprocess(this);
