@@ -27,6 +27,7 @@ protected:
 
 private slots:
     void deleteFile(const QString &filePath);
+    void refreshmain();
 
 signals:
     void doubleClicked(const QString &filePath);

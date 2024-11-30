@@ -29,12 +29,13 @@ bool CopyWorker::copyDirectoryContents(const QString &sourceDirPath, const QStri
     }
 
     QDir destDir(destDirPath);
+    QStringList destfolderList ;
     if (!destDir.exists()) {
         if (!destDir.mkpath(destDirPath)) {
             qWarning() << "Failed to create destination directory:" << destDirPath;
             return false;
         }
-    }
+    }else{destfolderList = destDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);}
 
     QStringList entries = sourceDir.entryList(QDir::NoDotAndDotDot | QDir::AllEntries);
     int totalEntries = entries.size();
@@ -47,6 +48,16 @@ bool CopyWorker::copyDirectoryContents(const QString &sourceDirPath, const QStri
 
         QFileInfo entryInfo(sourceEntryPath);
         if (entryInfo.isDir()) {
+            QDir entrydir(sourceEntryPath);
+            qDebug() << "entryInfo dir name" << entrydir.dirName();
+            for (int i = 0;i< destfolderList.size();i++ ){
+                QDir destdir(destfolderList[i]);
+                if(entrydir.dirName() == destdir.dirName()){
+                    destdir.removeRecursively();
+                    qDebug() << "repeat dir name" << destdir.dirName();
+                }
+            }
+
             if (!copyDirectoryContents(sourceEntryPath, destEntryPath)) {
                 return false;
             }
@@ -61,6 +72,7 @@ bool CopyWorker::copyDirectoryContents(const QString &sourceDirPath, const QStri
                 qWarning() << "Failed to copy file:" << sourceEntryPath << "to" << destEntryPath;
                 return false;
             }
+
         }
 
         // Update progress

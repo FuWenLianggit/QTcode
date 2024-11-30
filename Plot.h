@@ -12,7 +12,7 @@
 #include <qwt_plot_picker.h>  // 这行代码确保包含了 QwtPlotPicker 的声明
 #include <qwt_plot_curve.h>
 #include <QTime>
-
+class QwtPlotSpectrogram;
 // 定义 HoverPicker 类
 class HoverPicker : public QwtPlotPicker
 {
@@ -46,12 +46,12 @@ class Plot : public QwtPlot
     Q_OBJECT
 
 public:
-    Plot(QWidget* parent = nullptr);
+    Plot(bool flag , QWidget* parent = nullptr);
 
     void setSymbol(QwtSymbol* symbol);
     void setSamples(QwtPlotCurve* curve, const QVector<QPointF>& samples);
     void setSamplesLIN(QwtPlotCurve* curve, const QVector<QPointF>& samples, QStringList &timelist);
-    void setSamplesTipper(QwtPlotCurve* curve);
+    void setSamplesTipper( QwtPlotCurve* curve,const QVector< QPointF >& samples );
     void setSamplesLINtime(QString starttime, QString endtime,int text1position,int text2position);
 
 signals:
@@ -62,4 +62,40 @@ private:
     QLabel* m_infoLabel;  // 用于显示点信息的标签
     QStringList timeslist;
 
+// public:
+//     enum ColorMap
+//     {
+//         RGBMap,
+//         HueMap,
+//         SaturationMap,
+//         ValueMap,
+//         SVMap,
+//         AlphaMap
+//     };
+
+
+
+// Q_SIGNALS:
+//     void rendered( const QString& status );
+
+// public Q_SLOTS:
+//     void showContour( bool on );
+//     void showSpectrogram( bool on );
+
+//     void setColorMap( int );
+//     void setColorTableSize( int );
+//     void setAlpha( int );
+
+// // #ifndef QT_NO_PRINTER
+// //     void printPlot();
+// // #endif
+
+// private:
+//     virtual void drawItems( QPainter*, const QRectF&,
+//                            const QwtScaleMap maps[QwtAxis::AxisPositions] ) const QWT_OVERRIDE;
+
+//     QwtPlotSpectrogram* m_spectrogram;
+
+//     int m_mapType;
+//     int m_alpha;
 };

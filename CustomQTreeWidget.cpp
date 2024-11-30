@@ -13,6 +13,11 @@ void CustomQTreeWidget::contextMenuEvent(QContextMenuEvent *event) {
     QTreeWidgetItem *item = itemAt(event->pos());
     if (!item) {
         return;
+        // QMenu menu(this);
+        // QAction *draw = new QAction("刷新", this);
+        // connect(draw, &QAction::triggered, this, &CustomQTreeWidget::refreshmain);
+        // menu.addAction(draw);
+        // menu.exec(event->globalPos());
     }
     QString filePath = item->data(0, Qt::UserRole).toString();
     filePath_work = this->objectName();
@@ -54,6 +59,9 @@ void CustomQTreeWidget::openAction_op(const QString &filePath){
     emit doubleClicked(filePath);
 }
 
+void CustomQTreeWidget::refreshmain(){
+    emit refresh(filePath_work);
+}
 void CustomQTreeWidget::removeItemsBasedOnCondition()
 {
     // 获取根项目的数量

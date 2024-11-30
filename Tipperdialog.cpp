@@ -36,7 +36,7 @@ void TipperDialog::setupUi()
     selectedFiles <<  "airTBL file not found" << "airTS3 file not found" << "groundTBL file not found" << "groundTS3 file not found" << "LIN file not found"<<"LINlines not found" <<"Splitting time not found";
     // 添加选项到 list1
     // {"Tipper","AirTS3", "GroundTS3", "AirTBL","GroundTBL","LIN"};
-    options << "空中TBL" << "空中TS3" << "地面TBL" << "地面TS3" << "航线"<< "LINlines" << "分割时间";
+    options << "空中TBL" << "空中TS3" << "地面TBL" << "地面TS3" << "飞行轨迹"<< "LINlines" << "分割时间";
     for (const QString &option : options) {
         QListWidgetItem *item = new QListWidgetItem(option, list1);
         item->setFlags(item->flags() & ~Qt::ItemIsEnabled); // 初始时禁用所有选项
@@ -198,7 +198,7 @@ void TipperDialog::populateList2()
     if (selectedType == "分割时间") {
         // 创建 QSpinBox
         QSpinBox* spinBox = new QSpinBox(list2);
-        spinBox->setValue(40); // 设置默认值为40
+        spinBox->setValue(20); // 设置默认值为40
         spinBox->setMinimum(0); // 设置最小值（可以根据需要调整）
         spinBox->setMaximum(100); // 设置最大值（可以根据需要调整）
 

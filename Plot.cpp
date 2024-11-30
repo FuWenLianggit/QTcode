@@ -17,14 +17,37 @@
 #include <QMessageBox>
 #include <qwt_symbol.h>
 #include <qwt_plot_marker.h>
+#include <qwt_clipper.h>
+#include <qwt_color_map.h>
+#include <qwt_plot_spectrogram.h>
+#include<qwt_scale_widget.h>
+#include <qwt_scale_draw.h>
+#include <qwt_plot_zoomer.h>
+#include <qwt_plot_panner.h>
+#include <qwt_plot_layout.h>
+#include <qwt_plot_renderer.h>
+#include <qwt_interval.h>
+#include <qwt_painter.h>
+#include <QPainter>
+#include <QPen>
+#include <QtPrintSupport/QPrintDialog>
+#include <QElapsedTimer>
+
+
+
 // HoverPicker 类的实现
  HoverPicker::HoverPicker(QWidget* canvas, QwtPlotCurve* curve, QLabel* infoLabel,QStringList & timelist)
     : QwtPlotPicker(canvas), m_curve(curve), m_infoLabel(infoLabel),timeslists(timelist)
 {
+
     setTrackerMode(QwtPicker::AlwaysOn);
+
     setRubberBand(QwtPicker::NoRubberBand);
+
     timeslistsize = timeslists.size();
+
     m_lastClickedPoint = QPointF(); // 初始化最后点击点
+
 }
 
 // 鼠标悬停时显示点的信息
@@ -136,7 +159,7 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
 
 
             QPointF mouse_pos =invTransform(canvas()->mapFromGlobal(e->globalPos()));
-            double minDist = 30;
+            double minDist = 20;
             QPointF closestPoint;
 
             if (first_node != QPointF(3.14, 3.14) && second_node != QPointF(3.14, 3.14)) {
@@ -325,72 +348,166 @@ void  HoverPicker::widgetMousePressEvent(QMouseEvent* e)
 
 namespace
 {
-class DistancePicker : public QwtPlotPicker
-{
-public:
-    DistancePicker( QWidget* canvas )
-        : QwtPlotPicker( canvas )
+    class DistancePicker : public QwtPlotPicker
     {
-        setTrackerMode( QwtPicker::ActiveOnly );
-        setStateMachine( new QwtPickerDragLineMachine() );
-        setRubberBand( QwtPlotPicker::PolygonRubberBand );
-    }
-
-    virtual QwtText trackerTextF( const QPointF& pos ) const QWT_OVERRIDE
-    {
-        QwtText text;
-
-        const QPolygon points = selection();
-        if ( !points.isEmpty() )
+    public:
+        DistancePicker( QWidget* canvas )
+            : QwtPlotPicker( canvas )
         {
-            QString num;
-            num.setNum( QLineF( pos, invTransform( points[0] ) ).length() );
-
-            QColor bg( Qt::white );
-            bg.setAlpha( 200 );
-
-            text.setBackgroundBrush( QBrush( bg ) );
-            text.setText( num );
+            setTrackerMode( QwtPicker::ActiveOnly );
+            setStateMachine( new QwtPickerDragLineMachine() );
+            setRubberBand( QwtPlotPicker::PolygonRubberBand );
         }
-        return text;
-    }
-};
+
+        virtual QwtText trackerTextF( const QPointF& pos ) const QWT_OVERRIDE
+        {
+            QwtText text;
+
+            const QPolygon points = selection();
+            if ( !points.isEmpty() )
+            {
+                QString num;
+                num.setNum( QLineF( pos, invTransform( points[0] ) ).length() );
+
+                QColor bg( Qt::white );
+                bg.setAlpha( 200 );
+
+                text.setBackgroundBrush( QBrush( bg ) );
+                text.setText( num );
+            }
+            return text;
+        }
+    };
 }
 
-Plot::Plot( QWidget* parent )
+Plot::Plot(bool flag,QWidget* parent )
     : QwtPlot( parent )
-
+    // , m_alpha(255)
 {
-    canvas()->setStyleSheet(
-        "border: 2px solid Black;"
-        "border-radius: 15px;"
-        "background-color: qlineargradient( x1: 0, y1: 0, x2: 0, y2: 1,"
-        "stop: 0 LemonChiffon, stop: 1 PaleGoldenrod );"
-        );
+    bool a = true;
+    if (flag){
+        qDebug() << "";
+        //     m_spectrogram = new Spectrogram();
+    //     m_spectrogram->setRenderThreadCount( 0 ); // use system specific thread count
+    //     m_spectrogram->setCachePolicy( QwtPlotRasterItem::PaintCache );
 
-    // attach curve
-    m_curve = new QwtPlotCurve( "Scattered Points" );
-    // m_curve->setPen(QColor( "Purple" ));
-    // m_curve->setPen( QPen(Qt::blue, 2));
+    //     QList< double > contourLevels;
+    //     for ( double level = 0.5; level < 10.0; level += 1.0 )
+    //         contourLevels += level;
+    //     m_spectrogram->setContourLevels( contourLevels );
 
-    m_curve->setRenderThreadCount( 0 ); // 0: use QThread::idealThreadCount()
+    //     m_spectrogram->setData( new SpectrogramData() );
+    //     m_spectrogram->attach( this );
 
-    setSymbol( NULL );
+    //     const QwtInterval zInterval = m_spectrogram->data()->interval( Qt::ZAxis );
+
+    //     // A color bar on the right axis
+    //     QwtScaleWidget* rightAxis = axisWidget( QwtAxis::YRight );
+    //     rightAxis->setTitle( "Intensity" );
+    //     rightAxis->setColorBarEnabled( true );
+
+    //     setAxisScale( QwtAxis::YRight, zInterval.minValue(), zInterval.maxValue() );
+    //     setAxisVisible( QwtAxis::YRight );
+
+    //     plotLayout()->setAlignCanvasToScales( true );
+
+    //     setColorMap( Plot::RGBMap );
+
+    //     // LeftButton for the zooming
+    //     // MidButton for the panning
+    //     // RightButton: zoom out by 1
+    //     // Ctrl+RighButton: zoom out to full size
+
+    //     QwtPlotZoomer* zoomer = new MyZoomer( canvas() );
+    //     zoomer->setMousePattern( QwtEventPattern::MouseSelect2,
+    //                             Qt::RightButton, Qt::ControlModifier );
+    //     zoomer->setMousePattern( QwtEventPattern::MouseSelect3,
+    //                             Qt::RightButton );
+
+    //     QwtPlotPanner* panner = new QwtPlotPanner( canvas() );
+    //     panner->setAxisEnabled( QwtAxis::YRight, false );
+    //     panner->setMouseButton( Qt::MiddleButton );
+
+    //     // Avoid jumping when labels with more/less digits
+    //     // appear/disappear when scrolling vertically
+
+    //     const int extent = QwtPainter::horizontalAdvance(
+    //         axisWidget( QwtAxis::YLeft )->fontMetrics(), "100.00" );
+
+    //     axisScaleDraw( QwtAxis::YLeft )->setMinimumExtent( extent );
+
+    //     const QColor c( Qt::darkBlue );
+    //     zoomer->setRubberBandPen( c );
+    //     zoomer->setTrackerPen( c );
+    }
+    else {
+        canvas()->setStyleSheet(
+            "border: 2px solid Black;"
+            // "border-radius: 15px;"
+            "background-color:white;"
+            // "background-color: qlineargradient( x1: 0, y1: 0, x2: 0, y2: 1,"
+            // "stop: 0 LemonChiffon, stop: 1 PaleGoldenrod );"
+            );
+
+        // attach curve
+        m_curve = new QwtPlotCurve( "Scattered Points" );
+        // m_curve->setPen(QColor( "Purple" ));
+        // m_curve->setPen( QPen(Qt::blue, 2));
+
+        m_curve->setRenderThreadCount( 0 ); // 0: use QThread::idealThreadCount()
+
+        setSymbol( NULL );
 
 
-    (void )new QwtPlotPanner( canvas() );
+        (void )new QwtPlotPanner( canvas() );
 
-    QwtPlotMagnifier* magnifier = new QwtPlotMagnifier( canvas() );
-    magnifier->setMouseButton( Qt::NoButton );
+        QwtPlotMagnifier* magnifier = new QwtPlotMagnifier( canvas() );
+        magnifier->setMouseButton( Qt::NoButton );
 
-    DistancePicker* picker = new DistancePicker( canvas() );
-    picker->setMousePattern( QwtPlotPicker::MouseSelect1, Qt::RightButton );
-    picker->setRubberBandPen( QPen( Qt::blue ) );
+        DistancePicker* picker = new DistancePicker( canvas() );
+        picker->setMousePattern( QwtPlotPicker::MouseSelect1, Qt::RightButton );
+        picker->setRubberBandPen( QPen( Qt::blue ) );
 
+        qDebug() << "initial";
 
-
-    // m_curve->attach( this );
+        // m_curve->attach( this );
+    }
 }
+
+// Plot::Plot( QWidget* parent )
+//     : QwtPlot( parent )
+
+// {
+//     canvas()->setStyleSheet(
+//         "border: 2px solid Black;"
+//         "border-radius: 15px;"
+//         "background-color: qlineargradient( x1: 0, y1: 0, x2: 0, y2: 1,"
+//         "stop: 0 LemonChiffon, stop: 1 PaleGoldenrod );"
+//         );
+
+//     // attach curve
+//     m_curve = new QwtPlotCurve( "Scattered Points" );
+//     // m_curve->setPen(QColor( "Purple" ));
+//     // m_curve->setPen( QPen(Qt::blue, 2));
+
+//     m_curve->setRenderThreadCount( 0 ); // 0: use QThread::idealThreadCount()
+
+//     setSymbol( NULL );
+
+
+//     (void )new QwtPlotPanner( canvas() );
+
+//     QwtPlotMagnifier* magnifier = new QwtPlotMagnifier( canvas() );
+//     magnifier->setMouseButton( Qt::NoButton );
+
+//     DistancePicker* picker = new DistancePicker( canvas() );
+//     picker->setMousePattern( QwtPlotPicker::MouseSelect1, Qt::RightButton );
+//     picker->setRubberBandPen( QPen( Qt::blue ) );
+
+
+
+//     // m_curve->attach( this );
+// }
 
 
 void Plot::setSymbol( QwtSymbol* symbol )
@@ -405,7 +522,15 @@ void Plot::setSymbol( QwtSymbol* symbol )
 
 // 设置基本的图像形式 鼠标悬停显示文本 无选点功能
 void Plot::setSamples( QwtPlotCurve* curve,const QVector< QPointF >& samples )
-{   qDebug() <<"QwtText" << curve->dataSize();
+{
+    // canvas()->setStyleSheet(
+    //     "border: 2px solid Black;"
+    //     // "border-radius: 15px;"
+    //     // "background-color:white;"
+    //     "background-color: qlineargradient( x1: 0, y1: 0, x2: 0, y2: 1,"
+    //     "stop: 0 LemonChiffon, stop: 1 PaleGoldenrod );"
+    //     );
+    qDebug() <<"QwtText" << curve->dataSize();
     curve->setPaintAttribute(
         QwtPlotCurve::ImageBuffer, samples.size() > 1000 );
 
@@ -432,6 +557,13 @@ void Plot::setSamples( QwtPlotCurve* curve,const QVector< QPointF >& samples )
 // 设置飞行轨迹相关绘图参数 可悬停 可选点
 void Plot::setSamplesLIN( QwtPlotCurve* curve,const QVector< QPointF >& samples,QStringList & timelist )
 {   qDebug() <<"QwtText" << curve->dataSize();
+    canvas()->setStyleSheet(
+        "border: 2px solid Black;"
+        // "border-radius: 15px;"
+        // "background-color:white;"
+        "background-color: qlineargradient( x1: 0, y1: 0, x2: 0, y2: 1,"
+        "stop: 0 LemonChiffon, stop: 1 PaleGoldenrod );"
+        );
     curve->setPaintAttribute(
         QwtPlotCurve::ImageBuffer, samples.size() > 1000 );
 
@@ -463,8 +595,18 @@ void Plot::setSamplesLINtime(QString starttime,QString endtime, int text1iforxpo
 
 
 // 绘制倾子图像时一些基本参数设置
-void Plot::setSamplesTipper( QwtPlotCurve* curve)
-{   qDebug() <<"QwtText" << curve->dataSize();
+void Plot::setSamplesTipper( QwtPlotCurve* curve,const QVector< QPointF >& samples )
+{
+    canvas()->setStyleSheet(
+        "border: 2px solid Black;"
+        // "border-radius: 15px;"
+        // "background-color:white;"
+        "background-color: qlineargradient( x1: 0, y1: 0, x2: 0, y2: 1,"
+        "stop: 0 LemonChiffon, stop: 1 PaleGoldenrod );"
+        );
+    qDebug() <<"QwtText" << curve->dataSize();
+    curve->setPaintAttribute(
+        QwtPlotCurve::ImageBuffer, samples.size() > 1000 );
 
     // curve->setSamples( samples );
     // 创建显示点信息的标签，并将其放置在右上角
@@ -479,10 +621,9 @@ void Plot::setSamplesTipper( QwtPlotCurve* curve)
     });
     qDebug() <<"QwtText1" << curve->dataSize();
     QStringList  nonlist;
+    nonlist<<"-1";
     HoverPicker* hoverPicker = new HoverPicker(canvas(), curve,m_infoLabel, nonlist);
     hoverPicker->setRubberBandPen(QPen(Qt::blue));
-
-    // 右键测距
 
 }
 

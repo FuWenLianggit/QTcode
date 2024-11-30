@@ -21,6 +21,8 @@ struct TipperData {
     QVector<double> frequencies;
     QVector<double> tipperReal;
     QVector<double> tipperImag;
+    QVector<double> tipperRealzy;
+    QVector<double> tipperImagzy;
 };
 
 struct CoordData {
@@ -53,6 +55,8 @@ public:
     QString destinationPath;
     QString inverseprocesslineworking;
     QStringList inverseprocessparameters;
+
+
 
 private slots:
     void doubleClick(const QString &filePath);
@@ -100,6 +104,12 @@ private:
     QStringList zposition;
     void readTipperFile(const QString& filePath);
     void readCoordDistanceFile(const QString& filePath);
+    std::vector<double> xblocks;
+    std::vector<double> yblocks;
+    std::vector<std::vector<double>> data;
+    void draw_contour(QPainter *painter);
+    int calculate =0;
+    double xsum =0.0;
 
 };
 

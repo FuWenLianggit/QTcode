@@ -21,6 +21,7 @@ SOURCES += \
     Inverseprocess.cpp \
     Inversewindows.cpp \
     Plot.cpp \
+    Plotcontour.cpp \
     ProcessLine.cpp \
     TimeRangeDialog.cpp \
     TimeSeries.cpp \
@@ -42,6 +43,7 @@ HEADERS += \
     Inverseprocess.h \
     Inversewindows.h \
     Plot.h \
+    Plotcontour.h \
     ProcessLine.h \
     TimeRangeDialog.h \
     TimeSeries.h \
