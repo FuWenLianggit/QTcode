@@ -2,6 +2,9 @@
 #include <QMouseEvent>
 #include <QTabWidget>
 #include <iostream>
+// 由于tabbar中自带的关闭按钮只存在信号 不存在处理相关信号的函数 或者无法识别标签页的位置
+// 该类重写了相关的定义实现关闭功能
+// 该类可以被任意实例化 但是在设置到左侧树存在bug 降低库版本解决或者将.h文件中函数修改为virtual
 CustomTabBar::CustomTabBar(QWidget *parent) : QTabBar(parent) {}
 
 void CustomTabBar::paintEvent(QPaintEvent *event) {

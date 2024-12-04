@@ -6,6 +6,7 @@
 #include <QThread>
 #include <iostream>
 #include <QTreeWidget>
+// 定义左侧树的操作行为
 CustomQTreeWidget::CustomQTreeWidget(QWidget *parent) : QTreeWidget(parent), currentPath(QDir::rootPath()) {}
 
 void CustomQTreeWidget::contextMenuEvent(QContextMenuEvent *event) {
